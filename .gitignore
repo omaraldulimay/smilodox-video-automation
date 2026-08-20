@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+node_modules/
+frontend/dist/
+
+# Runtime data: SQLite DB, uploaded reference images, generated videos --
+# regenerated locally, not source, and may contain real product media.
+data/
