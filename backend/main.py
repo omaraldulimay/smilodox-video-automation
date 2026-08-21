@@ -8,6 +8,7 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -222,19 +223,19 @@ async def create_batch(
 class DriveScanIn(BaseModel):
     folder_path: str
     default_template_key: Optional[str] = None
+    model: Optional[str] = None
 
 
 @app.post("/jobs/batch/drive-scan/preview")
 async def preview_drive_scan(body: DriveScanIn):
     """Scans the folder and reports what would be created, without creating anything."""
     try:
-        groups = drive_scan.scan_folder(body.folder_path)
+        groups = drive_scan.scan_folder(body.folder_path, model=body.model)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
     for g in groups:
         g["template_key"] = g["template_key"] or body.default_template_key
-        del g["images"]  # internal detail, not needed by the preview UI
 
     unresolved = [g["variant_number"] for g in groups if not g["template_key"]]
     return {
@@ -245,20 +246,41 @@ async def preview_drive_scan(body: DriveScanIn):
     }
 
 
+@app.get("/jobs/batch/drive-scan/image")
+async def drive_scan_image(path: str):
+    """Serves a single reference-image file by absolute path for scan-preview thumbnails."""
+    file_path = Path(path)
+    if file_path.suffix.lower() not in drive_scan.IMAGE_EXTENSIONS:
+        raise HTTPException(400, "not a recognized image file")
+    if not file_path.is_file():
+        raise HTTPException(404, "file not found")
+    return FileResponse(file_path)
+
+
 class DriveScanCommitIn(BaseModel):
     folder_path: str
     default_template_key: Optional[str] = None
     model: str
+    resolution: Optional[str] = None
     dry_run: bool = False
+    include_folders: Optional[list[str]] = None
 
 
 @app.post("/jobs/batch/drive-scan/commit")
 async def commit_drive_scan(body: DriveScanCommitIn):
-    """Scans the folder and creates one job per detected (complete or not) variant group."""
+    """Scans the folder and creates one job per detected (complete or not) variant group.
+
+    If `include_folders` is given, only groups whose folder is in that list are
+    committed -- lets the UI let people deselect products they already generated.
+    """
     try:
-        groups = drive_scan.scan_folder(body.folder_path)
+        groups = drive_scan.scan_folder(body.folder_path, model=body.model)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+    if body.include_folders is not None:
+        include_set = set(body.include_folders)
+        groups = [g for g in groups if g["folder"] in include_set]
 
     created, errors = [], []
     for g in groups:
@@ -275,7 +297,7 @@ async def commit_drive_scan(body: DriveScanCommitIn):
                 model=body.model,
                 duration=t["duration"],
                 aspect_ratio=t["aspect_ratio"],
-                resolution=t["resolution"],
+                resolution=body.resolution or t["resolution"],
                 reference_paths=reference_paths,
                 dry_run=body.dry_run,
             )

@@ -1,10 +1,18 @@
 """Scans a (Google Drive-synced) folder for per-variant reference image sets.
 
-Filenames are expected to end in one of the four shot-type suffixes below, prefixed
-by the product/variant number, e.g. "12345_full_front.jpg". Images may sit in one
-flat folder, or be split into per-garment-type subfolders (in which case a subfolder
-named "oberteil"/"unterteil" auto-selects that template for everything inside it;
-otherwise the caller-supplied default template applies).
+One folder per product/variant: the team drops exactly 4 plainly-named images
+(no number prefix needed) into a folder named however they like, e.g.
+".../oberteil/some-product/full.jpg" -- the folder name itself is the variant
+identifier. Folders may be nested arbitrarily deep under the scan root (in which
+case any ancestor folder literally named "oberteil"/"unterteil" auto-selects that
+template for everything inside it; otherwise the caller-supplied default applies).
+
+Shot types (team's own naming, matches their existing photography workflow):
+  full        - full body, front view
+  front       - close-up of the garment, front
+  fullback    - full body, back view
+  detail_one  - product detail close-up (team shoots detail_one/detail_two but only
+                detail_one is ever used here)
 """
 
 from pathlib import Path
@@ -12,28 +20,52 @@ from typing import Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
-# Longest-suffix-first so "front_closeup" isn't mistaken for a shorter match.
-SHOT_TYPES = ["front_closeup", "detail_shot", "full_front", "full_back"]
+SHOT_TYPES = ["full", "front", "fullback", "detail_one"]
 
 # Fixed submission order expected by the prompt templates (image1..image4).
-SHOT_ORDER = ["full_front", "front_closeup", "full_back", "detail_shot"]
+SHOT_ORDER = ["full", "front", "fullback", "detail_one"]
 
 GARMENT_FOLDER_NAMES = {"oberteil": "oberteil", "unterteil": "unterteil"}
 
-
-def _match_shot_type(stem: str) -> Optional[tuple[str, str]]:
-    """Returns (variant_number, shot_type) if `stem` ends in a known shot-type suffix."""
-    for shot_type in SHOT_TYPES:
-        suffix = f"_{shot_type}"
-        if stem.lower().endswith(suffix):
-            variant = stem[: -len(suffix)]
-            if variant:
-                return variant, shot_type
-    return None
+# Common shorthand/alternate names people naturally use instead of the canonical
+# name. detail_two also maps to the detail_one slot -- the team shoots both but
+# only ever uses one per product, so whichever one is actually present should work.
+SHOT_TYPE_ALIASES = {"detail": "detail_one", "detail_two": "detail_one"}
 
 
-def scan_folder(root: str) -> list[dict]:
-    """Walks `root` recursively and groups matching images by variant number.
+def _match_shot_type(stem: str) -> Optional[str]:
+    """Returns the shot type if `stem` (the filename without extension) is exactly
+    one of the known shot-type names or a recognized alias, case-insensitive --
+    one plainly-named image per shot type, per product folder."""
+    normalized = stem.strip().lower()
+    normalized = SHOT_TYPE_ALIASES.get(normalized, normalized)
+    return normalized if normalized in SHOT_TYPES else None
+
+
+def _detect_template_from_ancestors(file_path: Path, root_path: Path) -> Optional[str]:
+    """Walks up from the file's folder to `root_path`, looking for an ancestor
+    literally named "oberteil"/"unterteil" -- not just the immediate parent. This
+    way a per-product subfolder nested inside e.g. ".../oberteil/some-product/"
+    still auto-detects, not only images placed directly in the oberteil folder.
+    """
+    current = file_path.parent
+    root_resolved = root_path.resolve()
+    while True:
+        if current.name.strip().lower() in GARMENT_FOLDER_NAMES:
+            return GARMENT_FOLDER_NAMES[current.name.strip().lower()]
+        if current.resolve() == root_resolved or current.parent == current:
+            return None
+        current = current.parent
+
+
+def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
+    """Walks `root` recursively and groups matching images by containing folder --
+    each folder holding recognized shot-type images is treated as one product/
+    variant, identified by that folder's own name.
+
+    `model`, if given, narrows what counts as "complete" to that model's actual
+    required shots (e.g. kling3_0 only needs full+fullback) instead of always
+    requiring all 4 canonical shots.
 
     Returns a list of dicts: {variant_number, template_key (None if undetected),
     images: {shot_type: path}, complete: bool, folder: str}.
@@ -42,31 +74,30 @@ def scan_folder(root: str) -> list[dict]:
     if not root_path.is_dir():
         raise ValueError(f"'{root}' is not a directory")
 
-    groups: dict[tuple[str, str], dict] = {}  # (folder, variant_number) -> group
+    groups: dict[str, dict] = {}  # folder -> group
 
     for file_path in root_path.rglob("*"):
         if not file_path.is_file() or file_path.suffix.lower() not in IMAGE_EXTENSIONS:
             continue
-        match = _match_shot_type(file_path.stem)
-        if match is None:
+        shot_type = _match_shot_type(file_path.stem)
+        if shot_type is None:
             continue
-        variant_number, shot_type = match
 
-        parent_name = file_path.parent.name.strip().lower()
-        detected_template = GARMENT_FOLDER_NAMES.get(parent_name)
+        detected_template = _detect_template_from_ancestors(file_path, root_path)
         folder_key = str(file_path.parent)
 
-        key = (folder_key, variant_number)
         group = groups.setdefault(
-            key,
+            folder_key,
             {
-                "variant_number": variant_number,
+                "variant_number": file_path.parent.name,
                 "template_key": detected_template,
                 "folder": folder_key,
                 "images": {},
             },
         )
         group["images"][shot_type] = str(file_path)
+
+    required_shots = TWO_IMAGE_MODEL_SHOT_ORDER.get(model, SHOT_ORDER)
 
     results = []
     for group in groups.values():
@@ -77,7 +108,7 @@ def scan_folder(root: str) -> list[dict]:
                 "template_key": group["template_key"],
                 "folder": group["folder"],
                 "image_count": len(images),
-                "complete": all(shot in images for shot in SHOT_ORDER),
+                "complete": all(shot in images for shot in required_shots),
                 "images": images,
             }
         )
@@ -91,10 +122,10 @@ def ordered_reference_paths(images: dict) -> list[str]:
 
 
 # Models limited to a start/end image pair (see higgsfield_adapter._build_flags)
-# get front+back specifically -- not just "the first two of the four", which would
-# otherwise silently pick front_closeup as the "end" frame.
+# get full+fullback specifically -- not just "the first two of the four", which
+# would otherwise silently pick "front" (the close-up) as the "end" frame.
 TWO_IMAGE_MODEL_SHOT_ORDER = {
-    "kling3_0": ["full_front", "full_back"],
+    "kling3_0": ["full", "fullback"],
 }
 
 

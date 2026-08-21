@@ -48,4 +48,5 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }),
+  driveScanImageUrl: (path) => `${BASE}/jobs/batch/drive-scan/image?path=${encodeURIComponent(path)}`,
 }

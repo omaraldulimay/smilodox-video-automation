@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { IconUpload, IconX } from '../components/Icons'
+import { RESOLUTION_ALLOWLIST } from '../modelResolutions'
 
 const FULL_SLOTS = ['Front', 'Close-up', 'Back', 'Detail']
 
@@ -10,12 +11,6 @@ const FULL_SLOTS = ['Front', 'Close-up', 'Back', 'Detail']
 // takes the full 4-image reference array.
 const MODEL_SLOTS = {
   kling3_0: ['Front', 'Back'],
-}
-
-// Seedance's schema also lists 720p/4k, but the team only wants the cheap
-// test tier and the production tier selectable here -- not the full enum.
-const RESOLUTION_ALLOWLIST = {
-  seedance_2_0: ['480p', '1080p'],
 }
 
 function slotsForModel(model) {

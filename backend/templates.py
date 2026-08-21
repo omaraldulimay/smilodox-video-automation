@@ -54,7 +54,7 @@ OBERTEIL_PROMPT = r"""{
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando recommends ~15s (comfort range 12-18s) as guidance, not a hard requirement -- this campaign intentionally keeps the shorter duration set below",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
  "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
  },
  "video_spec": {
@@ -68,87 +68,104 @@ OBERTEIL_PROMPT = r"""{
  "audio_text_graphics": "none"
  },
  "reference_images": {
- "image1": "full body, front view — defines silhouette, proportions, overall color, model appearance",
- "image2": "close-up of upper garment — defines fabric, texture, neckline, sleeves, seams, print, logo",
- "image3": "back view — defines rear construction, rear print/label",
- "image4": "product detail shot — defines exact stitching/hardware/print detail for final shot"
+ "image1": {
+ "role": "model identity, body proportions, full front silhouette, front garment geometry and overall color",
+ "content": "full body, front view"
+ },
+ "image2": {
+ "role": "upper-garment material, fabric texture, neckline, sleeves, seams, front print and logo detail",
+ "content": "close-up of upper garment"
+ },
+ "image3": {
+ "role": "rear garment geometry, rear construction, rear print and label detail",
+ "content": "back view"
+ },
+ "image4": {
+ "role": "hero detail, micro-texture and exact stitching, hardware or print detail for the final shot",
+ "content": "product detail shot"
+ }
  },
  "product_lock": {
- "rule": "All 4 images show the SAME physical upper garment. Match color, cut, fabric, texture, print, logo and construction exactly to the references in every shot. Never redesign, simplify or invent details. Fabric coloring stays perfectly even, no blotches or discoloration.",
- "primary_product": "upper garment — always the dominant commercial focus. Lower garments/shoes are styling context only."
+ "rule": "All 4 images show the SAME physical upper garment. Match color, cut, fabric, texture, print, logo and construction exactly to the relevant reference roles in every shot. Never redesign, simplify or invent details. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references.",
+ "primary_product": "upper garment — always the dominant commercial focus. Lower garments and shoes are styling context only."
  },
  "camera_and_environment": {
- "camera": "fixed studio position, no zoom/pan/tilt/dolly/tracking in any shot",
+ "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting across all shots",
  "floor_shadow": "subtle natural contact shadow"
  },
  "model": {
  "identity": "same adult model throughout all 4 shots",
- "expression": "relaxed, confident, subtle natural smile, direct eye contact when face is visible",
- "feet_rule": "both feet fully flat on the ground at all times — no tiptoes, no heel lifting",
+ "expression": "relaxed, confident, subtle natural smile; direct eye contact in front-facing shots; in profile shots the head and gaze remain naturally aligned with the body orientation",
+ "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
  "movement_rule": "only the choreography defined per shot — no improvised movement"
  },
- "aesthetic_direction": "Elevated editorial e-commerce fashion mood, consistent with a single cohesive brand shoot. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality. Same posture energy and framing logic across all generations",
+ "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish, consistent with a single cohesive brand shoot. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality. Same posture energy and framing logic across all generations.",
  "consistency_control": {
  "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing logic, same pacing. They do not need to be pixel-identical.",
  "fixed_across_generations": ["camera framing per shot", "choreography timing", "lighting setup", "background", "pose sequence logic"],
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and must repeat identically across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
+ "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
  "shots": [
  {
  "id": "shot_01_front_full_body",
- "reference": "image1",
+ "primary_product_reference": "image1",
+ "supporting_reference_roles": ["image2 for upper-garment material and front detail", "image3 for construction continuity"],
  "view": "direct front, full body, both shoes visible, model centered",
- "framing": "headroom fixed: crown of head to top of frame = one head-height, consistent across all generations",
+ "framing": "maximize upper-garment visibility while maintaining comfortable, consistent small headroom and full shoe visibility; the complete garment, including its lowest hem, remains unobstructed and commercially prominent",
  "choreography": {
- "0.0-0.5s": "weight shifts noticeably from left to right leg",
+ "0.0-0.5s": "weight shifts naturally from left to right leg",
  "0.5-1.0s": "right leg becomes primary support, left knee soft and relaxed",
- "1.0-1.5s": "left foot slides slightly outward and forward, both feet stay flat",
+ "1.0-1.5s": "left foot repositions slightly outward and forward with a minimal natural step, then plants fully and remains stable",
  "1.5-2.5s": "settles into relaxed asymmetric stance, holds pose, subtle smile, direct eye contact"
  }
  },
  {
  "id": "shot_02_side_upper_garment",
- "reference": "image2",
- "view": "exact 90-degree left side profile, upper garment dominates composition",
- "framing": "frame bottom edge at mid-thigh, head fully visible, consistent across all generations of this shot type",
+ "primary_product_reference": "image2",
+ "supporting_reference_roles": ["image1 for model identity, proportions, overall garment silhouette and color", "image3 for construction continuity where relevant"],
+ "view": "exact 90-degree left side profile, upper garment dominates composition; head and gaze follow the profile orientation",
+ "framing": "product-centered crop that keeps the entire upper garment from neckline and sleeves through its lowest hem fully visible, with a small amount of lower-body styling context; adapt the crop to garment length without cutting off the product",
  "choreography": {
- "0.0-0.5s": "weight shifts from left to right leg",
- "0.5-1.0s": "right leg becomes primary support",
- "1.0-1.5s": "subtle forward-and-back pelvis translation, no rotation",
- "1.5-2.5s": "settles into final side-profile stance, holds pose"
+ "0.0-0.5s": "weight shifts naturally from left to right leg",
+ "0.5-1.0s": "right leg becomes primary support, knees remain relaxed",
+ "1.0-1.5s": "subtle natural weight transfer with minimal torso response; garment remains clearly readable and profile alignment is preserved",
+ "1.5-2.5s": "settles into final side-profile stance and holds pose with gaze aligned to the body"
  }
  },
  {
  "id": "shot_03_back_upper_garment",
- "reference": "image3",
+ "primary_product_reference": "image3",
+ "supporting_reference_roles": ["image1 for model identity, proportions and overall color", "image2 for fabric and construction continuity"],
  "view": "exact 180-degree rear view, upper garment dominates composition",
- "framing": "frame bottom edge at mid-thigh, head fully visible, model perfectly centered, consistent across all generations of this shot type",
+ "framing": "product-centered crop that keeps the entire upper garment, including sleeves and its lowest rear hem, fully visible, with a small amount of lower-body styling context; model centered and crop adapted to garment length",
  "choreography": {
- "0.0-0.5s": "weight shifts from right to left leg",
- "0.5-1.0s": "left leg becomes primary support",
- "1.0-1.5s": "right foot slides slightly outward and back, stays flat",
- "1.5-2.5s": "settles into final rear stance, holds pose"
+ "0.0-0.5s": "weight shifts naturally from right to left leg",
+ "0.5-1.0s": "left leg becomes primary support, right knee soft and relaxed",
+ "1.0-1.5s": "right foot repositions slightly outward and back with a minimal natural step, then plants fully and remains stable",
+ "1.5-2.5s": "settles into final rear stance and holds pose"
  }
  },
  {
  "id": "shot_04_garment_detail",
- "reference": "image4",
+ "primary_product_reference": "image4",
+ "supporting_reference_roles": ["image2 for material and texture continuity", "image1 and image3 for overall product identity"],
  "view": "tight locked-off close-up matching the exact detail shown in image4 — no body or camera movement, only extremely subtle fabric response",
- "framing": "composition matches image4 as closely as possible, maximum sharpness on the exact detail",
+ "framing": "composition matches image4 as closely as possible, with maximum sharpness on the exact product detail",
  "choreography": {
  "0.0-2.5s": "static hold, maximum sharpness on the exact garment detail"
  }
  }
  ],
  "negative_prompt": [
- "camera movement", "zoom", "pan", "tilt", "tracking",
- "tiptoes", "heel lifting", "floating feet",
- "garment redesign", "color drift", "logo drift", "invented details",
- "fabric blotches or discoloration",
+ "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift",
+ "tiptoes", "sustained heel lifting", "floating feet", "foot sliding", "foot-ground penetration",
+ "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "invented details",
+ "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
+ "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
  "walking", "turning", "spinning", "exaggerated or sensual movement",
  "extra limbs", "anatomical distortion",
  "text", "watermarks", "background objects", "additional people",
@@ -159,13 +176,21 @@ OBERTEIL_PROMPT = r"""{
 }"""
 
 # Restructured 2026-08-20 to mirror OBERTEIL_PROMPT's schema/timing/tone -- see module docstring.
+# Revised again 2026-08-21 (user-supplied rewrite): fixes a physical contradiction in the old
+# feet_rule (required feet to stay flat at all times while also asking a foot to slide), clarifies
+# the camera rule to allow per-shot framing changes (locked only within a shot, not across all
+# shots), protects intentional garment texture (washes/melange/fading) from being "corrected" away,
+# adds framing language that prioritizes never cropping the garment, adds supporting_reference_roles
+# per shot so model identity/consistency threads through from image1 even when a shot's primary
+# reference is a different image, and expands negative_prompt with more specific known AI-video
+# failure modes (foot-ground penetration, garment morphing, seam/hardware flicker, etc).
 UNTERTEIL_PROMPT = r"""{
  "campaign": "zalando_lower_garment_video",
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando recommends ~15s (comfort range 12-18s) as guidance, not a hard requirement -- this campaign intentionally keeps the shorter duration set below",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
  "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
  },
  "video_spec": {
@@ -179,87 +204,104 @@ UNTERTEIL_PROMPT = r"""{
  "audio_text_graphics": "none"
  },
  "reference_images": {
- "image1": "full body, front view — defines silhouette, proportions, overall color, model appearance",
- "image2": "close-up of lower garment — defines fabric, texture, waistband, pockets, seams, print, hardware",
- "image3": "back view — defines rear construction, rear pockets, back print/label",
- "image4": "product detail shot — defines exact stitching/hardware/print detail for final shot"
+ "image1": {
+ "role": "model identity, body proportions, full front silhouette, front garment geometry and overall color",
+ "content": "full body, front view"
+ },
+ "image2": {
+ "role": "lower-garment material, fabric texture, waistband, rise, seams, pockets, front print and logo detail",
+ "content": "close-up of lower garment"
+ },
+ "image3": {
+ "role": "rear garment geometry, rear construction, back pockets, rear print and label detail",
+ "content": "back view"
+ },
+ "image4": {
+ "role": "hero detail, micro-texture and exact stitching, hardware or print detail for the final shot",
+ "content": "product detail shot"
+ }
  },
  "product_lock": {
- "rule": "All 4 images show the SAME physical lower garment. Match color, cut, fabric, texture, print, logo, waistband, pockets and construction exactly to the references in every shot. Never redesign, simplify or invent details. Fabric coloring stays perfectly even, no blotches or discoloration.",
- "primary_product": "lower garment — always the dominant commercial focus. Upper garments/shoes are styling context only."
+ "rule": "All 4 images show the SAME physical lower garment. Match color, cut, fabric, texture, print, logo and construction exactly to the relevant reference roles in every shot. Never redesign, simplify or invent details. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references.",
+ "primary_product": "lower garment — always the dominant commercial focus. Upper garments and shoes are styling context only."
  },
  "camera_and_environment": {
- "camera": "fixed studio position, no zoom/pan/tilt/dolly/tracking in any shot",
+ "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting across all shots",
  "floor_shadow": "subtle natural contact shadow"
  },
  "model": {
  "identity": "same adult model throughout all 4 shots",
- "expression": "relaxed, confident, subtle natural smile, direct eye contact when face is visible",
- "feet_rule": "both feet fully flat on the ground at all times — no tiptoes, no heel lifting",
+ "expression": "relaxed, confident, subtle natural smile; direct eye contact in front-facing shots; in profile shots the head and gaze remain naturally aligned with the body orientation",
+ "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
  "movement_rule": "only the choreography defined per shot — no improvised movement"
  },
- "aesthetic_direction": "Elevated editorial e-commerce fashion mood, consistent with a single cohesive brand shoot. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit. Same posture energy and framing logic across all generations",
+ "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish, consistent with a single cohesive brand shoot. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit. Same posture energy and framing logic across all generations.",
  "consistency_control": {
  "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing logic, same pacing. They do not need to be pixel-identical.",
  "fixed_across_generations": ["camera framing per shot", "choreography timing", "lighting setup", "background", "pose sequence logic"],
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and must repeat identically across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
+ "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
  "shots": [
  {
  "id": "shot_01_front_full_body",
- "reference": "image1",
+ "primary_product_reference": "image1",
+ "supporting_reference_roles": ["image2 for lower-garment material and front detail", "image3 for construction continuity"],
  "view": "direct front, full body, both shoes visible, model centered",
- "framing": "headroom fixed: crown of head to top of frame = one head-height, consistent across all generations",
+ "framing": "maximize lower-garment visibility while maintaining comfortable, consistent small headroom and full shoe visibility; the complete garment from waistband to hem remains unobstructed and commercially prominent",
  "choreography": {
- "0.0-0.5s": "weight shifts noticeably from left to right leg",
+ "0.0-0.5s": "weight shifts naturally from left to right leg",
  "0.5-1.0s": "right leg becomes primary support, left knee soft and relaxed",
- "1.0-1.5s": "left foot slides slightly outward and forward, both feet stay flat",
+ "1.0-1.5s": "left foot repositions slightly outward and forward with a minimal natural step, then plants fully and remains stable",
  "1.5-2.5s": "settles into relaxed asymmetric stance, holds pose, subtle smile, direct eye contact"
  }
  },
  {
  "id": "shot_02_side_lower_garment",
- "reference": "image2",
- "view": "exact 90-degree left side profile, lower garment dominates composition",
- "framing": "frame top edge at chest, both feet fully visible, consistent across all generations of this shot type",
+ "primary_product_reference": "image2",
+ "supporting_reference_roles": ["image1 for model identity, proportions, overall garment silhouette and color", "image3 for construction continuity where relevant"],
+ "view": "exact 90-degree left side profile, lower garment dominates composition; head and gaze follow the profile orientation if visible",
+ "framing": "product-centered crop that keeps the entire lower garment from waistband to hem fully visible; include sufficient upper-body and footwear context without reducing the garment's commercial prominence, adapting the crop to the product length",
  "choreography": {
- "0.0-0.5s": "weight shifts from left to right leg",
- "0.5-1.0s": "right leg becomes primary support",
- "1.0-1.5s": "subtle forward-and-back pelvis translation, no rotation",
- "1.5-2.5s": "settles into final side-profile stance, holds pose"
+ "0.0-0.5s": "weight shifts naturally from left to right leg",
+ "0.5-1.0s": "right leg becomes primary support, knees remain relaxed",
+ "1.0-1.5s": "subtle natural weight transfer with minimal torso response; waistband, rise and fit remain stable and clearly readable",
+ "1.5-2.5s": "settles into final side-profile stance and holds pose with gaze aligned to the body if visible"
  }
  },
  {
  "id": "shot_03_back_lower_garment",
- "reference": "image3",
+ "primary_product_reference": "image3",
+ "supporting_reference_roles": ["image1 for model identity, proportions and overall color", "image2 for fabric and construction continuity"],
  "view": "exact 180-degree rear view, lower garment dominates composition",
- "framing": "frame top edge at chest, both feet fully visible, model perfectly centered, consistent across all generations of this shot type",
+ "framing": "product-centered crop that keeps the entire lower garment from waistband to hem fully visible; include sufficient upper-body and footwear context without reducing the garment's commercial prominence, with the model centered and crop adapted to product length",
  "choreography": {
- "0.0-0.5s": "weight shifts from right to left leg",
- "0.5-1.0s": "left leg becomes primary support",
- "1.0-1.5s": "right foot slides slightly outward and back, stays flat",
- "1.5-2.5s": "settles into final rear stance, holds pose"
+ "0.0-0.5s": "weight shifts naturally from right to left leg",
+ "0.5-1.0s": "left leg becomes primary support, right knee soft and relaxed",
+ "1.0-1.5s": "right foot repositions slightly outward and back with a minimal natural step, then plants fully and remains stable",
+ "1.5-2.5s": "settles into final rear stance and holds pose"
  }
  },
  {
  "id": "shot_04_garment_detail",
- "reference": "image4",
+ "primary_product_reference": "image4",
+ "supporting_reference_roles": ["image2 for material and texture continuity", "image1 and image3 for overall product identity"],
  "view": "tight locked-off close-up matching the exact detail shown in image4 — no body or camera movement, only extremely subtle fabric response",
- "framing": "composition matches image4 as closely as possible, maximum sharpness on the exact detail",
+ "framing": "composition matches image4 as closely as possible, with maximum sharpness on the exact product detail",
  "choreography": {
  "0.0-2.5s": "static hold, maximum sharpness on the exact garment detail"
  }
  }
  ],
  "negative_prompt": [
- "camera movement", "zoom", "pan", "tilt", "tracking",
- "tiptoes", "heel lifting", "floating feet",
- "garment redesign", "color drift", "logo drift", "invented details",
- "fabric blotches or discoloration",
+ "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift",
+ "tiptoes", "sustained heel lifting", "floating feet", "foot sliding", "foot-ground penetration",
+ "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "invented details",
+ "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
+ "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
  "walking", "turning", "spinning", "exaggerated or sensual movement",
  "extra limbs", "anatomical distortion",
  "text", "watermarks", "background objects", "additional people",
@@ -277,17 +319,21 @@ UNTERTEIL_PROMPT = r"""{
 # there is no 4th reference image to ground it: full body -> hard cut to a static
 # close-up on the SAME front reference (no new image, just a tighter static crop,
 # no camera movement) -> hard cut to the back reference. ~3.33s per shot (10s / 3).
+# Revised 2026-08-21 alongside OBERTEIL/UNTERTEIL_PROMPT: same feet_rule fix, same
+# clarified camera rule, same color-preservation wording in product_lock, and the
+# same expanded negative_prompt list, for full quality parity across all 4 prompts.
 KLING_OBERTEIL_PROMPT = r"""{
  "campaign": "zalando_upper_garment_video_kling",
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando recommends ~15s (comfort range 12-18s) as guidance, not a hard requirement -- this campaign intentionally keeps the shorter duration set below",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
  "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
+ "resolution_min": "762x1100",
  "fps": 24,
  "duration_seconds": 10,
  "shot_count": 3,
@@ -300,11 +346,11 @@ KLING_OBERTEIL_PROMPT = r"""{
  "end_image": "full body, back view — defines rear construction, rear print/label, upper garment"
  },
  "product_lock": {
- "rule": "The start and end reference show the SAME physical upper garment on the SAME model. Match color, cut, fabric, texture, print, logo and construction exactly to both references in every shot, including the close-up shot which is the same front-facing garment at a nearer framing -- never invent new detail that isn't visible in start_image. Fabric coloring stays perfectly even, no blotches or discoloration.",
+ "rule": "The start and end reference show the SAME physical upper garment on the SAME model. Match color, cut, fabric, texture, print, logo and construction exactly to both references in every shot, including the close-up shot which is the same front-facing garment at a nearer framing -- never invent new detail that isn't visible in start_image. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references.",
  "primary_product": "upper garment — always the dominant commercial focus. Lower garments/shoes are styling context only."
  },
  "camera_and_environment": {
- "camera": "fixed studio position, no zoom/pan/tilt/dolly/tracking in any shot",
+ "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
@@ -312,10 +358,17 @@ KLING_OBERTEIL_PROMPT = r"""{
  "model": {
  "identity": "same adult model throughout all 3 shots",
  "expression": "relaxed, confident, subtle natural smile, direct eye contact when face is visible",
- "feet_rule": "both feet fully flat on the ground at all times — no tiptoes, no heel lifting",
+ "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
  "movement_rule": "only the choreography defined per shot — no improvised movement, no walking"
  },
- "aesthetic_direction": "Elevated editorial e-commerce fashion mood. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality, especially in the close-up.",
+ "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality, especially in the close-up.",
+ "consistency_control": {
+ "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing logic, same pacing. They do not need to be pixel-identical.",
+ "fixed_across_generations": ["camera framing per shot", "cut timing (3.33s / 3.33s / 3.34s)", "lighting setup", "background", "pose sequence logic"],
+ "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
+ "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
+ },
+ "choreography_discipline": "The pose and framing described per shot are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
  "shots": [
  {
  "id": "shot_01_front_full_body",
@@ -343,10 +396,11 @@ KLING_OBERTEIL_PROMPT = r"""{
  }
  ],
  "negative_prompt": [
- "camera movement", "zoom", "pan", "tilt", "tracking",
- "tiptoes", "heel lifting", "floating feet",
- "garment redesign", "color drift", "logo drift", "invented details",
- "fabric blotches or discoloration",
+ "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift",
+ "tiptoes", "sustained heel lifting", "floating feet", "foot sliding", "foot-ground penetration",
+ "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "invented details",
+ "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
+ "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
  "walking", "turning", "spinning", "exaggerated or sensual movement",
  "extra limbs", "anatomical distortion",
  "text", "watermarks", "background objects", "additional people",
@@ -362,11 +416,12 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando recommends ~15s (comfort range 12-18s) as guidance, not a hard requirement -- this campaign intentionally keeps the shorter duration set below",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
  "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
+ "resolution_min": "762x1100",
  "fps": 24,
  "duration_seconds": 10,
  "shot_count": 3,
@@ -379,11 +434,11 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "end_image": "full body, back view — defines rear construction, rear pockets, back print/label, lower garment"
  },
  "product_lock": {
- "rule": "The start and end reference show the SAME physical lower garment on the SAME model. Match color, cut, fabric, texture, print, logo, waistband, pockets and construction exactly to both references in every shot, including the close-up shot which is the same front-facing garment at a nearer framing -- never invent new detail that isn't visible in start_image. Fabric coloring stays perfectly even, no blotches or discoloration.",
+ "rule": "The start and end reference show the SAME physical lower garment on the SAME model. Match color, cut, fabric, texture, print, logo, waistband, pockets and construction exactly to both references in every shot, including the close-up shot which is the same front-facing garment at a nearer framing -- never invent new detail that isn't visible in start_image. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references.",
  "primary_product": "lower garment — always the dominant commercial focus. Upper garments/shoes are styling context only."
  },
  "camera_and_environment": {
- "camera": "fixed studio position, no zoom/pan/tilt/dolly/tracking in any shot",
+ "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
@@ -391,10 +446,17 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "model": {
  "identity": "same adult model throughout all 3 shots",
  "expression": "relaxed, confident, subtle natural smile, direct eye contact when face is visible",
- "feet_rule": "both feet fully flat on the ground at all times — no tiptoes, no heel lifting",
+ "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
  "movement_rule": "only the choreography defined per shot — no improvised movement, no walking"
  },
- "aesthetic_direction": "Elevated editorial e-commerce fashion mood. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit, especially in the close-up.",
+ "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit, especially in the close-up.",
+ "consistency_control": {
+ "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing logic, same pacing. They do not need to be pixel-identical.",
+ "fixed_across_generations": ["camera framing per shot", "cut timing (3.33s / 3.33s / 3.34s)", "lighting setup", "background", "pose sequence logic"],
+ "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
+ "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
+ },
+ "choreography_discipline": "The pose and framing described per shot are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
  "shots": [
  {
  "id": "shot_01_front_full_body",
@@ -422,10 +484,11 @@ KLING_UNTERTEIL_PROMPT = r"""{
  }
  ],
  "negative_prompt": [
- "camera movement", "zoom", "pan", "tilt", "tracking",
- "tiptoes", "heel lifting", "floating feet",
- "garment redesign", "color drift", "logo drift", "invented details",
- "fabric blotches or discoloration",
+ "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift",
+ "tiptoes", "sustained heel lifting", "floating feet", "foot sliding", "foot-ground penetration",
+ "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "invented details",
+ "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
+ "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
  "walking", "turning", "spinning", "exaggerated or sensual movement",
  "extra limbs", "anatomical distortion",
  "text", "watermarks", "background objects", "additional people",
