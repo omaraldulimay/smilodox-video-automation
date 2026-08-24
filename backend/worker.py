@@ -153,6 +153,7 @@ async def _process_job(row):
             raise hf.GenerationError(f"job finished but no result URL found: {job}", transient=False)
 
         output_path = await _download(result_url, job_id)
+        await qa.ensure_thumbnail(output_path)
         probe_result = await qa.probe(str(output_path))
         passed, detail = qa.check_against_target(probe_result, row["duration"])
         dropped = job.get("_dropped_reference_count")

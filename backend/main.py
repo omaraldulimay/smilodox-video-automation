@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, db, worker, templates, drive_scan
+from . import config, db, worker, templates, drive_scan, qa
 from . import higgsfield_adapter as hf
 
 app = FastAPI(title="Smilodox Video Automation")
@@ -308,16 +308,33 @@ async def commit_drive_scan(body: DriveScanCommitIn):
     return {"created": created, "errors": errors}
 
 
+# The dashboard only offers these 4 simplified statuses; "completed"/"failed" each
+# expand to the finer-grained statuses the worker actually uses internally.
+STATUS_GROUPS = {
+    "completed": ("completed", "completed_dry_run"),
+    "failed": ("failed_transient", "failed_permanent", "qa_failed"),
+}
+
+
 @app.get("/jobs")
-async def list_jobs(status: Optional[str] = None, model: Optional[str] = None, limit: int = 200):
+async def list_jobs(
+    status: Optional[str] = None,
+    model: Optional[str] = None,
+    dry_run: Optional[int] = None,
+    limit: int = 200,
+):
     query = "SELECT * FROM clips WHERE 1=1"
     params: list = []
     if status:
-        query += " AND status = ?"
-        params.append(status)
+        statuses = STATUS_GROUPS.get(status, (status,))
+        query += f" AND status IN ({','.join('?' for _ in statuses)})"
+        params.extend(statuses)
     if model:
         query += " AND model = ?"
         params.append(model)
+    if dry_run is not None:
+        query += " AND dry_run = ?"
+        params.append(dry_run)
     query += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
 
@@ -336,6 +353,36 @@ async def get_job(job_id: str):
             "SELECT * FROM events WHERE job_id = ? ORDER BY created_at ASC", (job_id,)
         ).fetchall()
     return {"job": dict(row), "events": [dict(e) for e in events]}
+
+
+def _get_output_path(job_id: str) -> Path:
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT output_path FROM clips WHERE job_id = ?", (job_id,)).fetchone()
+    if row is None or not row["output_path"]:
+        raise HTTPException(404, "no video for this job")
+    path = Path(row["output_path"])
+    if not path.is_file():
+        raise HTTPException(404, "video file not found")
+    return path
+
+
+@app.get("/jobs/{job_id}/video")
+async def get_job_video(job_id: str):
+    """Streams the finished video for hover-preview / playback in the dashboard."""
+    return FileResponse(_get_output_path(job_id), media_type="video/mp4")
+
+
+@app.get("/jobs/{job_id}/thumbnail")
+async def get_job_thumbnail(job_id: str):
+    """Serves a still frame from the finished video. Normally already generated
+    proactively by the worker right after the job finishes (see worker.py) --
+    this lazily generates it only as a fallback for videos made before that
+    existed, so it never re-runs ffmpeg once cached."""
+    video_path = _get_output_path(job_id)
+    thumb_path = await qa.ensure_thumbnail(video_path)
+    if not thumb_path.is_file():
+        raise HTTPException(500, "thumbnail generation failed")
+    return FileResponse(thumb_path, media_type="image/jpeg")
 
 
 @app.post("/jobs/{job_id}/retry")

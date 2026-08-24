@@ -1,6 +1,7 @@
 import asyncio
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 from . import config
@@ -47,6 +48,25 @@ async def probe(file_path: str) -> QAResult:
     codec = video_stream.get("codec_name")
 
     return QAResult(True, duration, width, height, codec, "ok")
+
+
+async def ensure_thumbnail(video_path: Path) -> Path:
+    """Generates a still-frame thumbnail next to `video_path` if it doesn't exist yet.
+
+    Called both right after a job finishes (worker.py, so dashboard loads never hit
+    a burst of ffmpeg calls at once) and lazily as a fallback (main.py's thumbnail
+    endpoint, for videos generated before this existed).
+    """
+    thumb_path = video_path.with_suffix(".jpg")
+    if thumb_path.is_file():
+        return thumb_path
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-y", "-ss", "0.5", "-i", str(video_path), "-frames:v", "1", str(thumb_path),
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc.wait()
+    return thumb_path
 
 
 def check_against_target(result: QAResult, target_duration: float) -> tuple[bool, str]:

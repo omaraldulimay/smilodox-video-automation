@@ -7,12 +7,20 @@ from pathlib import Path
 # to the team's shared Drive automatically.
 DATA_ROOT = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "data"))
 
-DB_PATH = DATA_ROOT / "state.db"
-UPLOADS_DIR = DATA_ROOT / "uploads"
-OUTPUT_DIR = DATA_ROOT / "output"
-MANIFESTS_DIR = DATA_ROOT / "manifests"
+# Internal/technical folders the team never needs to browse -- kept in their own
+# subfolder so the Shared Drive root only shows reference-images/ and output/.
+INTERNAL_DIR = DATA_ROOT / "Datenbank"
 
-for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR):
+DB_PATH = INTERNAL_DIR / "state.db"
+UPLOADS_DIR = INTERNAL_DIR / "uploads"
+OUTPUT_DIR = DATA_ROOT / "output"
+MANIFESTS_DIR = INTERNAL_DIR / "manifests"
+# Master brand-mark variants (e.g. icon_wordmark_tag.png, script_wordmark_tonal.png)
+# the team copies from into a product's own folder as that product's "logo" shot --
+# see drive_scan.py's optional "logo" shot type.
+BRAND_ASSETS_DIR = DATA_ROOT / "brand_assets"
+
+for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, BRAND_ASSETS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 WORKER_CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", "3"))

@@ -3,11 +3,13 @@ import { api } from '../api'
 import { IconCheck, IconAlertTriangle, IconRefresh, IconFolder } from '../components/Icons'
 import { RESOLUTION_ALLOWLIST } from '../modelResolutions'
 
-const SHOT_ORDER = ['full', 'front', 'fullback', 'detail_one']
+// 'logo' is optional (see backend/drive_scan.py OPTIONAL_SHOT_TYPES) -- shown as
+// a bonus thumbnail slot but never required for a group to count as complete.
+const SHOT_ORDER = ['full', 'front', 'fullback', 'detail_one', 'logo']
 
 // Kling only ever uses full+fullback (see backend/drive_scan.py
 // TWO_IMAGE_MODEL_SHOT_ORDER) -- showing all 4 thumbnails would suggest front/
-// detail_one matter for Kling when they're silently ignored.
+// detail_one/logo matter for Kling when they're silently ignored.
 const MODEL_SHOT_ORDER = {
   kling3_0: ['full', 'fullback'],
 }
@@ -351,7 +353,7 @@ export default function BatchUpload({ onSwitchToDashboard }) {
               })}
               {scanResult.groups.length === 0 && (
                 <div style={{ padding: 16, fontSize: 12, color: 'var(--text-faint)' }}>
-                  Keine passenden Bilder gefunden (erwartet: ein Ordner pro Produkt mit full.jpg, front.jpg, fullback.jpg, detail_one.jpg).
+                  Keine passenden Bilder gefunden (erwartet: ein Ordner pro Produkt mit full.jpg, front.jpg, fullback.jpg, detail_one.jpg, optional logo.jpg).
                 </div>
               )}
             </div>

@@ -3,16 +3,48 @@ import { api } from '../api'
 import StatusBadge from '../components/StatusBadge'
 import { IconPlay, IconRefresh } from '../components/Icons'
 
-const STATUS_OPTIONS = [
-  '',
-  'pending',
-  'processing',
-  'completed',
-  'completed_dry_run',
-  'qa_failed',
-  'failed_transient',
-  'failed_permanent',
-]
+const STATUS_OPTIONS = ['', 'pending', 'processing', 'completed', 'failed']
+
+function VideoPreview({ job }) {
+  const [hovering, setHovering] = useState(false)
+  const hasVideo = job.status === 'completed' && job.output_path
+
+  return (
+    <div
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      style={{
+        width: 90,
+        height: 160,
+        background: 'var(--border-light)',
+        borderRadius: 4,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      {!hasVideo ? (
+        <IconPlay />
+      ) : hovering ? (
+        <video
+          src={api.jobVideoUrl(job.job_id)}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        <img
+          src={api.jobThumbnailUrl(job.job_id)}
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      )}
+    </div>
+  )
+}
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -32,7 +64,9 @@ export default function Dashboard() {
   const [search, setSearch] = useState('')
 
   const load = useCallback(() => {
-    const params = {}
+    // Dashboard is meant to show real generations only -- dry-runs are just cost
+    // estimates, not actual videos, and would clutter the "what's finished" view.
+    const params = { dry_run: 0 }
     if (status) params.status = status
     if (model) params.model = model
     api.listJobs(params).then(setJobs)
@@ -106,22 +140,7 @@ export default function Dashboard() {
             {visibleJobs.map((job) => (
               <tr key={job.job_id}>
                 <td>
-                  <div
-                    style={{
-                      width: 44,
-                      height: 58,
-                      background: 'var(--border-light)',
-                      borderRadius: 4,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {job.status === 'completed' && job.output_path ? (
-                      <IconPlay />
-                    ) : null}
-                  </div>
+                  <VideoPreview job={job} />
                 </td>
                 <td>
                   <StatusBadge status={job.status} />

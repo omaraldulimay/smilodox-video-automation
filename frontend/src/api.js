@@ -49,4 +49,6 @@ export const api = {
       body: JSON.stringify(body),
     }),
   driveScanImageUrl: (path) => `${BASE}/jobs/batch/drive-scan/image?path=${encodeURIComponent(path)}`,
+  jobVideoUrl: (jobId) => `${BASE}/jobs/${jobId}/video`,
+  jobThumbnailUrl: (jobId) => `${BASE}/jobs/${jobId}/thumbnail`,
 }
