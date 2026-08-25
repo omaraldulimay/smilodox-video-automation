@@ -10,7 +10,10 @@ _shutdown = asyncio.Event()
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    # Millisecond precision + trailing "Z" (not "+00:00" with 6-digit microseconds)
+    # -- the latter parses inconsistently across browsers (notably Safari), which
+    # showed up as wrong "time ago" values in the dashboard.
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def _claim_next_job():
@@ -133,7 +136,7 @@ async def _process_job(row):
     try:
         if row["dry_run"]:
             credits = await hf.estimate_cost(
-                row["model"], row["prompt"], row["duration"], row["aspect_ratio"], row["resolution"]
+                row["model"], row["prompt"], row["duration"], row["aspect_ratio"], row["resolution"], row["mode"]
             )
             _mark_dry_run_completed(job_id, credits)
             return
@@ -146,6 +149,7 @@ async def _process_job(row):
             row["aspect_ratio"],
             row["resolution"],
             config.GENERATE_WAIT_TIMEOUT,
+            row["mode"],
         )
 
         result_url = _extract_result_url(job)
@@ -153,9 +157,15 @@ async def _process_job(row):
             raise hf.GenerationError(f"job finished but no result URL found: {job}", transient=False)
 
         output_path = await _download(result_url, job_id)
+        # Gemini Omni can't natively output above 720p -- upscale in place so
+        # every completed clip meets Zalando's stated minimum resolution, at no
+        # extra Higgsfield cost. No-op for models already at/above 1080p.
+        upscaled = await qa.upscale_to_1080p(output_path, row["aspect_ratio"])
         await qa.ensure_thumbnail(output_path)
         probe_result = await qa.probe(str(output_path))
         passed, detail = qa.check_against_target(probe_result, row["duration"])
+        if upscaled:
+            detail = f"{detail} (upscaled to {probe_result.width}x{probe_result.height})"
         dropped = job.get("_dropped_reference_count")
         if dropped:
             detail = f"{detail} (warning: {dropped} reference image(s) dropped, model only supports fewer slots)"

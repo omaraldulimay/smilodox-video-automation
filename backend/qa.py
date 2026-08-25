@@ -50,14 +50,62 @@ async def probe(file_path: str) -> QAResult:
     return QAResult(True, duration, width, height, codec, "ok")
 
 
+# Target dims per aspect ratio for upscale_to_1080p -- 1.5x a 720p source exactly,
+# matching the 1080p resolution the other models (Seedance/Kling) already output.
+_UPSCALE_TARGETS = {
+    "9:16": (1080, 1920),
+    "16:9": (1920, 1080),
+}
+
+
+async def upscale_to_1080p(video_path: Path, aspect_ratio: str) -> bool:
+    """Upscales a video in place to 1080p via ffmpeg (Lanczos) if it's below that
+    resolution and its aspect ratio is one we know the target dims for.
+
+    This is a plain pixel-dimension upscale (no added real detail) -- it exists
+    only to satisfy Zalando's stated minimum resolution for models like Gemini
+    Omni that can't natively output above 720p, at zero extra generation cost.
+    Returns True if an upscale was actually performed.
+    """
+    target = _UPSCALE_TARGETS.get(aspect_ratio)
+    if target is None:
+        return False
+    target_w, target_h = target
+
+    result = await probe(str(video_path))
+    if not result.passed or not result.width or not result.height:
+        return False
+    if result.width >= target_w and result.height >= target_h:
+        return False
+
+    tmp_path = video_path.with_suffix(".upscaled.mp4")
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-y", "-i", str(video_path),
+        "-vf", f"scale={target_w}:{target_h}:flags=lanczos",
+        "-c:a", "copy",
+        str(tmp_path),
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc.wait()
+    if proc.returncode != 0 or not tmp_path.is_file():
+        tmp_path.unlink(missing_ok=True)
+        return False
+
+    tmp_path.replace(video_path)
+    return True
+
+
 async def ensure_thumbnail(video_path: Path) -> Path:
-    """Generates a still-frame thumbnail next to `video_path` if it doesn't exist yet.
+    """Generates a still-frame thumbnail in config.THUMBNAILS_DIR if it doesn't
+    exist yet -- deliberately NOT next to `video_path`, so the Shared Drive
+    output/ folder the team browses only ever contains actual generated videos.
 
     Called both right after a job finishes (worker.py, so dashboard loads never hit
     a burst of ffmpeg calls at once) and lazily as a fallback (main.py's thumbnail
     endpoint, for videos generated before this existed).
     """
-    thumb_path = video_path.with_suffix(".jpg")
+    thumb_path = config.THUMBNAILS_DIR / f"{video_path.stem}.jpg"
     if thumb_path.is_file():
         return thumb_path
     proc = await asyncio.create_subprocess_exec(

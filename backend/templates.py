@@ -55,7 +55,7 @@ OBERTEIL_PROMPT = r"""{
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
  "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
- "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
+ "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
@@ -83,29 +83,25 @@ OBERTEIL_PROMPT = r"""{
  "image4": {
  "role": "hero detail, micro-texture and exact stitching, hardware, logo or print detail for the final shot",
  "content": "product detail shot"
- },
- "image5": {
- "role": "OPTIONAL -- only present when this product's own brand tag/graphic needs a clean ground-truth reference. When present, defines the exact brand mark this garment carries.",
- "content": "close-up of this product's actual brand mark/tag, provided only when relevant"
  }
  },
  "product_lock": {
- "rule": "All images labeled image1-image4 show the SAME physical upper garment. Match color, cut, fabric, texture, print, logo and construction exactly to the relevant reference roles in every shot. Never redesign, simplify or invent details. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in the reference photos -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
- "primary_product": "upper garment — always the dominant commercial focus. Lower garments and shoes are styling context only."
+ "rule": "All images labeled image1-image4 show the SAME physical upper garment. Match color, cut, fabric, texture, print, logo and construction exactly to the relevant reference roles in every shot. Never redesign, simplify or invent details. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in the reference photos -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Match the color saturation and vibrancy of the reference photos exactly -- never render the garment flatter, greyer, duller or less saturated than it appears there, even against the darker studio backdrop; the fabric's true color intensity must read the same as in the references. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. Match the same number of tags/marks as the references, never duplicated. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
+ "primary_product": "upper garment — always the dominant commercial focus, and the ONLY product this template defines (image1-image4). The full outfit shown is not the product: the lower garment/shoes are a separately-sold Smilodox product, present only as styling context (a different video job if it needs its own accurate treatment). It should still look natural and consistent; if its own logo is already clearly legible in the references, keep it that way, but never infer, copy or invent branding for it from the upper garment, and never treat the full outfit as one branded unit."
  },
  "brand_identity": {
- "image5_reference_rule": "If image5 is supplied, it is a close-up of this exact product's real brand mark -- reproduce its exact graphic, typography, color and placement style faithfully wherever image1-image4 already show a brand tag, label or logo. Treat image5 as the ground-truth correction for a mark that is present but small or blurry elsewhere, never as license to add a mark that isn't otherwise visible.",
- "known_style_variance": "This brand uses more than one real visual style across its product lines, so never assume a single fixed logo appearance: some garments carry a small rectangular tag with a black roaring-feline icon plus a bold black condensed all-caps \"SMILODOX\" wordmark; others instead carry a tonal, same-color-as-fabric cursive \"Smilodox\" script embroidered or printed directly into the fabric (no tag, no icon). Reproduce whichever style image5 or image1-image4 actually show for THIS product -- never substitute the other style.",
- "no_invention_rule": "If image5 is absent and no brand tag, label or logo graphic is visible anywhere in image1-image4, do not add one — some garments carry no visible branding at all."
+ "default_style": "The brand's icon, when present, is a minimal angular feline head in left-facing profile (sharp straight edges, no curves, no mouth or fang; an angular ear-spike on top; a twin-stroke swept-back mane tapering to points on the right). The wordmark, when present, is \"SMILODOX\" in bold, condensed, all-caps geometric sans-serif. CRITICAL: a single product carries EITHER the icon OR the wordmark, NEVER both together -- match whichever this product's own image1-image4 actually show (icon-only, text-only, or no branding at all); never invent the other one or add either that isn't literally visible here.",
+ "no_invention_rule": "If no brand tag, label or logo graphic is visible anywhere in image1-image4, do not add one — some garments carry no visible branding at all. Different products in this same brand legitimately carry different mark styles (icon+tag vs. plain text vs. none) -- never copy the mark style from a different, previously-seen product onto this one."
  },
  "camera_and_environment": {
- "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
+ "camera": "camera remains completely locked within each shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting across all shots",
  "floor_shadow": "subtle natural contact shadow"
  },
  "model": {
  "identity": "same adult model throughout all 4 shots -- her face (bone structure, eyes, nose, mouth, skin tone) must exactly match the real person shown in the reference photos; never generate a different-looking, generic or stylized face, and never let facial identity drift between shots",
+ "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
  "expression": "relaxed, confident, subtle natural smile; direct eye contact in front-facing shots; in profile shots the head and gaze remain naturally aligned with the body orientation; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
  "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
  "movement_rule": "only the choreography defined per shot — no improvised movement"
@@ -117,7 +113,7 @@ OBERTEIL_PROMPT = r"""{
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
+ "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and repeat consistently across generations; only the fabric's visual texture may vary. WITHIN a single shot, motion flows continuously through that shot's own windows -- no speeding into a pose then freezing at a window boundary. This applies ONLY inside each shot, NOT between shots: every cut to the next shot is still a hard cut to that shot's own camera view (per the shot list below), never a continuation of the previous shot's move, and the model does not visibly rotate or reposition across the cut. Exception: shot_04_garment_detail is a deliberate total static hold (per its own choreography below) -- follow that instruction instead.",
  "shots": [
  {
  "id": "shot_01_front_full_body",
@@ -136,7 +132,7 @@ OBERTEIL_PROMPT = r"""{
  "id": "shot_02_side_upper_garment",
  "primary_product_reference": "image2",
  "supporting_reference_roles": ["image1 for model identity, proportions, overall garment silhouette and color", "image3 for construction continuity where relevant"],
- "view": "exact 90-degree left side profile, upper garment dominates composition; head and gaze follow the profile orientation",
+ "view": "exact 90-degree left side profile, upper garment dominates composition -- a closer, garment-focused crop than shot 1's full-body framing, not a repeat of it; head and gaze follow the profile orientation",
  "framing": "product-centered crop that keeps the entire upper garment from neckline and sleeves through its lowest hem fully visible, with a small amount of lower-body styling context; adapt the crop to garment length without cutting off the product",
  "choreography": {
  "0.0-0.5s": "weight shifts naturally from left to right leg",
@@ -149,7 +145,7 @@ OBERTEIL_PROMPT = r"""{
  "id": "shot_03_back_upper_garment",
  "primary_product_reference": "image3",
  "supporting_reference_roles": ["image1 for model identity, proportions and overall color", "image2 for fabric and construction continuity"],
- "view": "exact 180-degree rear view, upper garment dominates composition",
+ "view": "exact 180-degree rear view, upper garment dominates composition -- a closer, garment-focused crop than shot 1's full-body framing, not a repeat of it",
  "framing": "product-centered crop that keeps the entire upper garment, including sleeves and its lowest rear hem, fully visible, with a small amount of lower-body styling context; model centered and crop adapted to garment length",
  "choreography": {
  "0.0-0.5s": "weight shifts naturally from right to left leg",
@@ -175,14 +171,19 @@ OBERTEIL_PROMPT = r"""{
  "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "blank logo tag", "missing logo graphic", "illegible logo", "invented print pattern", "altered print pattern", "generic pattern substitution", "invented details",
  "fabric hallucination", "invented fabric texture", "generic fabric substitution", "changed fabric knit or weave", "wrong fabric sheen",
  "different face", "generic face", "stylized face", "face identity drift", "face swap", "altered facial features", "different model",
+ "desaturated colors", "muted colors", "washed-out color", "flattened color contrast", "dull or lifeless garment color",
+ "jerky movement", "sudden pose snap", "abrupt motion", "staccato motion", "freeze-frame pause between movements", "hectic movement", "rushed weight shift",
+ "model turning between shots", "body rotation carried across a cut", "continuous camera move across a cut", "full body framing in a product close-up shot",
+ "invented logo icon", "added brand icon not shown in references", "invented tag graphic", "generic default logo substituted for actual mark", "logo style copied from a different product", "icon and wordmark combined on one garment", "curved or rounded logo icon shape", "roaring open-mouth logo face", "outfit treated as a single product", "branding copied across the full outfit", "duplicate logo tag", "extra brand tag not in references",
  "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
  "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
  "walking", "turning", "spinning", "exaggerated or sensual movement",
- "extra limbs", "anatomical distortion", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "extra limbs", "anatomical distortion", "malformed hands", "extra or fused fingers", "artifacts where hands touch fabric or skin", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "background morphing", "warped straight seams", "lens flare", "film grain", "vignette", "depth of field blur",
  "text", "watermarks", "background objects", "additional people",
- "cartoon or CGI appearance", "beauty filter",
- "children", "minors", "nudity", "exposed intimate areas", "weapons", "violence",
- "political symbols", "religious imagery", "drug use", "hate symbols"
+ "cartoon or CGI appearance", "beauty filter", "airbrushed skin", "over-smoothed skin", "plastic skin", "waxy skin", "porcelain skin", "digitally painted skin", "uncanny smooth complexion",
+ "non-adult appearance", "unintended skin exposure beyond garment design", "combat implements", "physical altercation",
+ "discriminatory symbols", "religious imagery", "substance use", "hateful imagery"
  ]
 }"""
 
@@ -202,7 +203,7 @@ UNTERTEIL_PROMPT = r"""{
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
  "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
- "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
+ "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
@@ -230,29 +231,25 @@ UNTERTEIL_PROMPT = r"""{
  "image4": {
  "role": "hero detail, micro-texture and exact stitching, hardware, logo or print detail for the final shot",
  "content": "product detail shot"
- },
- "image5": {
- "role": "OPTIONAL -- only present when this product's own brand tag/graphic needs a clean ground-truth reference. When present, defines the exact brand mark this garment carries.",
- "content": "close-up of this product's actual brand mark/tag, provided only when relevant"
  }
  },
  "product_lock": {
- "rule": "All images labeled image1-image4 show the SAME physical lower garment. Match color, cut, fabric, texture, print, logo and construction exactly to the relevant reference roles in every shot. Never redesign, simplify or invent details. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in the reference photos -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
- "primary_product": "lower garment — always the dominant commercial focus. Upper garments and shoes are styling context only."
+ "rule": "All images labeled image1-image4 show the SAME physical lower garment. Match color, cut, fabric, texture, print, logo and construction exactly to the relevant reference roles in every shot. Never redesign, simplify or invent details. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in the reference photos -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Match the color saturation and vibrancy of the reference photos exactly -- never render the garment flatter, greyer, duller or less saturated than it appears there, even against the darker studio backdrop; the fabric's true color intensity must read the same as in the references. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. Match the same number of tags/marks as the references, never duplicated. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
+ "primary_product": "lower garment — always the dominant commercial focus, and the ONLY product this template defines (image1-image4). The full outfit shown is not the product: the upper garment/shoes are a separately-sold Smilodox product, present only as styling context (a different video job if it needs its own accurate treatment). It should still look natural and consistent; if its own logo is already clearly legible in the references, keep it that way, but never infer, copy or invent branding for it from the lower garment, and never treat the full outfit as one branded unit."
  },
  "brand_identity": {
- "image5_reference_rule": "If image5 is supplied, it is a close-up of this exact product's real brand mark -- reproduce its exact graphic, typography, color and placement style faithfully wherever image1-image4 already show a brand tag, label or logo. Treat image5 as the ground-truth correction for a mark that is present but small or blurry elsewhere, never as license to add a mark that isn't otherwise visible.",
- "known_style_variance": "This brand uses more than one real visual style across its product lines, so never assume a single fixed logo appearance: some garments carry a small rectangular tag with a black roaring-feline icon plus a bold black condensed all-caps \"SMILODOX\" wordmark; others instead carry a tonal, same-color-as-fabric cursive \"Smilodox\" script embroidered or printed directly into the fabric (no tag, no icon). Reproduce whichever style image5 or image1-image4 actually show for THIS product -- never substitute the other style.",
- "no_invention_rule": "If image5 is absent and no brand tag, label or logo graphic is visible anywhere in image1-image4, do not add one — some garments carry no visible branding at all."
+ "default_style": "The brand's icon, when present, is a minimal angular feline head in left-facing profile (sharp straight edges, no curves, no mouth or fang; an angular ear-spike on top; a twin-stroke swept-back mane tapering to points on the right). The wordmark, when present, is \"SMILODOX\" in bold, condensed, all-caps geometric sans-serif. CRITICAL: a single product carries EITHER the icon OR the wordmark, NEVER both together -- match whichever this product's own image1-image4 actually show (icon-only, text-only, or no branding at all); never invent the other one or add either that isn't literally visible here.",
+ "no_invention_rule": "If no brand tag, label or logo graphic is visible anywhere in image1-image4, do not add one — some garments carry no visible branding at all. Different products in this same brand legitimately carry different mark styles (icon+tag vs. plain text vs. none) -- never copy the mark style from a different, previously-seen product onto this one."
  },
  "camera_and_environment": {
- "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
+ "camera": "camera remains completely locked within each shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting across all shots",
  "floor_shadow": "subtle natural contact shadow"
  },
  "model": {
  "identity": "same adult model throughout all 4 shots -- her face (bone structure, eyes, nose, mouth, skin tone) must exactly match the real person shown in the reference photos; never generate a different-looking, generic or stylized face, and never let facial identity drift between shots",
+ "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
  "expression": "relaxed, confident, subtle natural smile; direct eye contact in front-facing shots; in profile shots the head and gaze remain naturally aligned with the body orientation; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
  "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
  "movement_rule": "only the choreography defined per shot — no improvised movement"
@@ -264,7 +261,7 @@ UNTERTEIL_PROMPT = r"""{
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
+ "choreography_discipline": "Timing windows below (e.g. 0.0-0.5s) are fixed and repeat consistently across generations; only the fabric's visual texture may vary. WITHIN a single shot, motion flows continuously through that shot's own windows -- no speeding into a pose then freezing at a window boundary. This applies ONLY inside each shot, NOT between shots: every cut to the next shot is still a hard cut to that shot's own camera view (per the shot list below), never a continuation of the previous shot's move, and the model does not visibly rotate or reposition across the cut. Exception: shot_04_garment_detail is a deliberate total static hold (per its own choreography below) -- follow that instruction instead.",
  "shots": [
  {
  "id": "shot_01_front_full_body",
@@ -283,7 +280,7 @@ UNTERTEIL_PROMPT = r"""{
  "id": "shot_02_side_lower_garment",
  "primary_product_reference": "image2",
  "supporting_reference_roles": ["image1 for model identity, proportions, overall garment silhouette and color", "image3 for construction continuity where relevant"],
- "view": "exact 90-degree left side profile, lower garment dominates composition; head and gaze follow the profile orientation if visible",
+ "view": "exact 90-degree left side profile, lower garment dominates composition -- a closer, garment-focused crop than shot 1's full-body framing, not a repeat of it; head and gaze follow the profile orientation if visible",
  "framing": "product-centered crop that keeps the entire lower garment from waistband to hem fully visible; include sufficient upper-body and footwear context without reducing the garment's commercial prominence, adapting the crop to the product length",
  "choreography": {
  "0.0-0.5s": "weight shifts naturally from left to right leg",
@@ -296,7 +293,7 @@ UNTERTEIL_PROMPT = r"""{
  "id": "shot_03_back_lower_garment",
  "primary_product_reference": "image3",
  "supporting_reference_roles": ["image1 for model identity, proportions and overall color", "image2 for fabric and construction continuity"],
- "view": "exact 180-degree rear view, lower garment dominates composition",
+ "view": "exact 180-degree rear view, lower garment dominates composition -- a closer, garment-focused crop than shot 1's full-body framing, not a repeat of it",
  "framing": "product-centered crop that keeps the entire lower garment from waistband to hem fully visible; include sufficient upper-body and footwear context without reducing the garment's commercial prominence, with the model centered and crop adapted to product length",
  "choreography": {
  "0.0-0.5s": "weight shifts naturally from right to left leg",
@@ -322,14 +319,19 @@ UNTERTEIL_PROMPT = r"""{
  "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "blank logo tag", "missing logo graphic", "illegible logo", "invented print pattern", "altered print pattern", "generic pattern substitution", "invented details",
  "fabric hallucination", "invented fabric texture", "generic fabric substitution", "changed fabric knit or weave", "wrong fabric sheen",
  "different face", "generic face", "stylized face", "face identity drift", "face swap", "altered facial features", "different model",
+ "desaturated colors", "muted colors", "washed-out color", "flattened color contrast", "dull or lifeless garment color",
+ "jerky movement", "sudden pose snap", "abrupt motion", "staccato motion", "freeze-frame pause between movements", "hectic movement", "rushed weight shift",
+ "model turning between shots", "body rotation carried across a cut", "continuous camera move across a cut", "full body framing in a product close-up shot",
+ "invented logo icon", "added brand icon not shown in references", "invented tag graphic", "generic default logo substituted for actual mark", "logo style copied from a different product", "icon and wordmark combined on one garment", "curved or rounded logo icon shape", "roaring open-mouth logo face", "outfit treated as a single product", "branding copied across the full outfit", "duplicate logo tag", "extra brand tag not in references",
  "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
  "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
  "walking", "turning", "spinning", "exaggerated or sensual movement",
- "extra limbs", "anatomical distortion", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "extra limbs", "anatomical distortion", "malformed hands", "extra or fused fingers", "artifacts where hands touch fabric or skin", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "background morphing", "warped straight seams", "lens flare", "film grain", "vignette", "depth of field blur",
  "text", "watermarks", "background objects", "additional people",
- "cartoon or CGI appearance", "beauty filter",
- "children", "minors", "nudity", "exposed intimate areas", "weapons", "violence",
- "political symbols", "religious imagery", "drug use", "hate symbols"
+ "cartoon or CGI appearance", "beauty filter", "airbrushed skin", "over-smoothed skin", "plastic skin", "waxy skin", "porcelain skin", "digitally painted skin", "uncanny smooth complexion",
+ "non-adult appearance", "unintended skin exposure beyond garment design", "combat implements", "physical altercation",
+ "discriminatory symbols", "religious imagery", "substance use", "hateful imagery"
  ]
 }"""
 
@@ -351,16 +353,15 @@ KLING_OBERTEIL_PROMPT = r"""{
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
  "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
- "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
+ "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
  "resolution_min": "762x1100",
  "fps": 24,
  "duration_seconds": 10,
- "shot_count": 3,
- "shot_duration_seconds": 3.33,
- "editing": "hard cuts only, no transitions, no camera movement of any kind",
+ "shot_count": 1,
+ "editing": "one single continuous shot for the full 10 seconds -- no cuts, no transitions, no camera movement of any kind; the only motion is the model's own body turning in place",
  "audio_text_graphics": "none"
  },
  "reference_images": {
@@ -368,74 +369,66 @@ KLING_OBERTEIL_PROMPT = r"""{
  "end_image": "full body, back view — defines rear construction, rear print/label, upper garment"
  },
  "product_lock": {
- "rule": "The start and end reference show the SAME physical upper garment on the SAME model. Match color, cut, fabric, texture, print, logo and construction exactly to both references in every shot, including the close-up shot which is the same front-facing garment at a nearer framing -- never invent new detail that isn't visible in start_image. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in start_image/end_image -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
- "primary_product": "upper garment — always the dominant commercial focus. Lower garments/shoes are styling context only."
+ "rule": "The start and end reference show the SAME physical upper garment on the SAME model. Match color, cut, fabric, texture, print, logo and construction exactly to both references throughout the shot -- never invent new detail that isn't visible in start_image/end_image. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in start_image/end_image -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Match the color saturation and vibrancy of the reference photos exactly -- never render the garment flatter, greyer, duller or less saturated than it appears there, even against the darker studio backdrop; the fabric's true color intensity must read the same as in the references. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. Match the same number of tags/marks as the references, never duplicated. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
+ "primary_product": "upper garment — always the dominant commercial focus, and the ONLY product this template defines (start_image/end_image). The full outfit shown is not the product: the lower garment/shoes are a separately-sold Smilodox product, present only as styling context (a different video job if it needs its own accurate treatment). It should still look natural and consistent; if its own logo is already clearly legible in the references, keep it that way, but never infer, copy or invent branding for it from the upper garment, and never treat the full outfit as one branded unit."
  },
  "brand_identity": {
- "logo_icon": "the brand's logo icon is a bold black angular silhouette of a roaring feline (saber-tooth cat) head in left-facing profile with an open mouth and one visible fang, its mane rendered as a single sweeping curved speed-line extending back and to the right -- flat, single-color black on a plain white background, no other colors or gradients",
- "wordmark": "the brand name \"SMILODOX\" in bold, black, condensed, all-caps sans-serif lettering",
- "application_on_garment": "How this branding physically appears varies by product -- the icon/wordmark descriptions above are ground truth for what the graphic itself looks like, NOT a requirement that every product carries both elements or carries them as a tag. Some products have it as two small separate white fabric tags (one icon-only, one wordmark-only) sewn at a side seam or waistband; other products instead have only the \"SMILODOX\" wordmark woven or printed directly into the fabric of a waistband or band, with no separate tag and no icon at all. Always match what is actually visible in that specific product's own reference photos first (whether branding appears, and where) -- use the icon/wordmark description above only to sharpen a branding element that IS present but small or blurry in those references, never to add a tag, icon or wordmark that the references don't show."
+ "logo_icon": "the brand's logo icon is a minimal angular feline head silhouette in left-facing profile -- sharp straight polygon edges only, no curves, no open mouth or fang. A sharp upward angular spike (alert ear) tops the head; snout comes to a point. Behind it, two parallel swept-back strokes of different lengths taper to points on the right (twin speed-streaks, not one curved line). Flat solid black, no gradients, on a plain white background.",
+ "wordmark": "the brand name \"SMILODOX\" in bold, black, heavy, condensed, all-caps geometric sans-serif lettering with straight-edged blocky letterforms and no serifs",
+ "application_on_garment": "How branding appears varies by product -- the icon/wordmark descriptions above are ground truth for the graphics themselves, not a requirement to use both. Some products carry it as a small tag (icon-only or wordmark-only); others have only \"SMILODOX\" woven/printed into the fabric, no icon. CRITICAL: a single product carries EITHER the icon OR the wordmark, NEVER both together -- match whichever start_image/end_image actually show, and never copy the mark style from a different product onto this one. Reproduce it at the natural size and distance it appears in the reference photos -- never zoom or crop in specifically to feature it; if it is small in the references, it stays small here too."
  },
  "camera_and_environment": {
- "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
+ "camera": "camera remains completely locked for the entire 10-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
  },
  "model": {
- "identity": "same adult model throughout all 3 shots -- her face (bone structure, eyes, nose, mouth, skin tone) must exactly match the real person shown in the reference photos; never generate a different-looking, generic or stylized face, and never let facial identity drift between shots",
- "expression": "relaxed, confident, subtle natural smile, direct eye contact when face is visible; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
- "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
- "movement_rule": "only the choreography defined per shot — no improvised movement, no walking"
+ "identity": "same adult model throughout the shot -- her face (bone structure, eyes, nose, mouth, skin tone) must exactly match the real person shown in the reference photos; never generate a different-looking, generic or stylized face, and never let facial identity drift over the course of the turn",
+ "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
+ "expression": "relaxed, confident, subtle natural smile, direct eye contact when facing camera; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
+ "feet_rule": "feet remain naturally grounded and stable throughout the turn; weight shifts smoothly between feet as the body rotates -- no tiptoes, floating feet, sustained heel lifting or foot sliding",
+ "movement_rule": "only the single continuous turn defined below — no improvised movement, no walking, no steps away from center"
  },
- "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality, especially in the close-up.",
+ "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality as the body turns.",
  "consistency_control": {
- "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing logic, same pacing. They do not need to be pixel-identical.",
- "fixed_across_generations": ["camera framing per shot", "cut timing (3.33s / 3.33s / 3.34s)", "lighting setup", "background", "pose sequence logic"],
+ "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing, same pacing of the turn. They do not need to be pixel-identical.",
+ "fixed_across_generations": ["camera framing (locked, unchanged for the full 10s)", "turn direction and timing", "lighting setup", "background"],
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "The pose and framing described per shot are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
+ "choreography_discipline": "This is ONE single continuous 10-second shot -- there are no cuts and no separate shots. Motion must flow smoothly and continuously through the entire duration, in the pacing defined below; the timing windows mark one continuous physical motion path, not discrete keyframes. Never speed up into a pose and then freeze/pause, never a sudden snap -- only gradual, evenly-paced continuous turning motion throughout.",
  "shots": [
  {
- "id": "shot_01_front_full_body",
- "reference": "start_image",
- "duration_seconds": 3.33,
- "view": "direct front, full body, both shoes visible, model centered",
- "framing": "headroom fixed: crown of head to top of frame = one head-height",
- "choreography": "model holds a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact"
- },
- {
- "id": "shot_02_upper_garment_closeup",
- "reference": "start_image",
- "duration_seconds": 3.33,
- "view": "hard cut to a static close framing on the SAME front-facing upper garment — no camera movement, direct cut only",
- "framing": "tight static crop from chest to waist, fabric/texture/print of the upper garment clearly visible and sharp",
- "choreography": "model holds the pose steady, only extremely subtle natural breathing motion, no repositioning"
- },
- {
- "id": "shot_03_back_view",
- "reference": "end_image",
- "duration_seconds": 3.34,
- "view": "hard cut to a direct rear view, full body, matching end_image exactly",
- "framing": "same full-body framing as shot 1, model perfectly centered",
- "choreography": "model holds a relaxed back-facing stance matching end_image exactly, subtle natural weight sway"
+ "id": "shot_01_360_turn",
+ "duration_seconds": 10,
+ "view": "single continuous shot, full body always in frame, camera completely locked -- the model smoothly and continuously turns her own body in place, starting facing front exactly as start_image shows, rotating through a natural side profile, ending facing away exactly as end_image shows. One fluid, continuous rotation, never a series of cuts or poses, and never a close-up or zoom at any point",
+ "framing": "full body always visible including both shoes, consistent headroom the entire 10 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
+ "choreography": {
+ "0.0-1.5s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
+ "1.5-8.0s": "smooth, continuous, evenly-paced rotation of the whole body in place, weight shifting naturally with the turn, passing through a natural side profile around the midpoint -- one fluid motion, never a snap, never a pause",
+ "8.0-10.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
+ }
  }
  ],
  "negative_prompt": [
- "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift",
+ "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift", "any cut or scene change", "close-up crop", "unmotivated zoom on logo or fabric", "camera framing change mid-shot",
  "tiptoes", "sustained heel lifting", "floating feet", "foot sliding", "foot-ground penetration",
  "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "blank logo tag", "missing logo graphic", "illegible logo", "invented print pattern", "altered print pattern", "generic pattern substitution", "invented details",
  "fabric hallucination", "invented fabric texture", "generic fabric substitution", "changed fabric knit or weave", "wrong fabric sheen",
  "different face", "generic face", "stylized face", "face identity drift", "face swap", "altered facial features", "different model",
+ "desaturated colors", "muted colors", "washed-out color", "flattened color contrast", "dull or lifeless garment color",
+ "jerky movement", "sudden pose snap", "abrupt motion", "staccato motion", "freeze-frame pause mid-turn", "hectic movement", "rushed weight shift",
+ "invented logo icon", "added brand icon not shown in references", "invented tag graphic", "generic default logo substituted for actual mark", "logo style copied from a different product", "icon and wordmark combined on one garment", "curved or rounded logo icon shape", "roaring open-mouth logo face", "outfit treated as a single product", "branding copied across the full outfit", "duplicate logo tag", "extra brand tag not in references",
  "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
  "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
- "walking", "turning", "spinning", "exaggerated or sensual movement",
- "extra limbs", "anatomical distortion", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "walking", "spinning too fast", "exaggerated or sensual movement",
+ "extra limbs", "anatomical distortion", "malformed hands", "extra or fused fingers", "artifacts where hands touch fabric or skin", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "background morphing", "warped straight seams", "lens flare", "film grain", "vignette", "depth of field blur",
  "text", "watermarks", "background objects", "additional people",
- "cartoon or CGI appearance", "beauty filter",
- "children", "minors", "nudity", "exposed intimate areas", "weapons", "violence",
- "political symbols", "religious imagery", "drug use", "hate symbols"
+ "cartoon or CGI appearance", "beauty filter", "airbrushed skin", "over-smoothed skin", "plastic skin", "waxy skin", "porcelain skin", "digitally painted skin", "uncanny smooth complexion",
+ "non-adult appearance", "unintended skin exposure beyond garment design", "combat implements", "physical altercation",
+ "discriminatory symbols", "religious imagery", "substance use", "hateful imagery"
  ]
 }"""
 
@@ -446,16 +439,15 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
  "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
- "content_restrictions": "no minors/children anywhere in frame, no nudity or exposed intimate areas, no violence or weapons, no discriminatory/political/religious content, no substance use, no on-screen text or sound"
+ "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
  "resolution_min": "762x1100",
  "fps": 24,
  "duration_seconds": 10,
- "shot_count": 3,
- "shot_duration_seconds": 3.33,
- "editing": "hard cuts only, no transitions, no camera movement of any kind",
+ "shot_count": 1,
+ "editing": "one single continuous shot for the full 10 seconds -- no cuts, no transitions, no camera movement of any kind; the only motion is the model's own body turning in place",
  "audio_text_graphics": "none"
  },
  "reference_images": {
@@ -463,74 +455,66 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "end_image": "full body, back view — defines rear construction, rear pockets, back print/label, lower garment"
  },
  "product_lock": {
- "rule": "The start and end reference show the SAME physical lower garment on the SAME model. Match color, cut, fabric, texture, print, logo, waistband, pockets and construction exactly to both references in every shot, including the close-up shot which is the same front-facing garment at a nearer framing -- never invent new detail that isn't visible in start_image. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in start_image/end_image -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
- "primary_product": "lower garment — always the dominant commercial focus. Upper garments/shoes are styling context only."
+ "rule": "The start and end reference show the SAME physical lower garment on the SAME model. Match color, cut, fabric, texture, print, logo, waistband, pockets and construction exactly to both references throughout the shot -- never invent new detail that isn't visible in start_image/end_image. Never hallucinate, invent or substitute a different fabric knit, weave, ribbing, sheen or surface texture than what is actually visible in start_image/end_image -- the rendered fabric must be recognizably the exact same physical material shown there, not a generic or plausible-looking substitute. No unintended color drift, blotching, flicker or discoloration. Match the color saturation and vibrancy of the reference photos exactly -- never render the garment flatter, greyer, duller or less saturated than it appears there, even against the darker studio backdrop; the fabric's true color intensity must read the same as in the references. Preserve all intentional washes, gradients, fading, distressing, melange effects and color variation exactly as shown in the references. Any brand tags, labels or logos visible in the references -- however small -- must be reproduced with their printed mark or graphic intact, legible and at the same relative size and position; never render a logo tag as a blank, empty or plain-colored patch. Match the same number of tags/marks as the references, never duplicated. For any printed or textured pattern (e.g. animal print, camo, stripes, florals, marbling), take the pattern's exact scale, shape, spacing and colors directly from the reference photos -- never substitute a different, generic, smoothed-over or invented pattern.",
+ "primary_product": "lower garment — always the dominant commercial focus, and the ONLY product this template defines (start_image/end_image). The full outfit shown is not the product: the upper garment/shoes are a separately-sold Smilodox product, present only as styling context (a different video job if it needs its own accurate treatment). It should still look natural and consistent; if its own logo is already clearly legible in the references, keep it that way, but never infer, copy or invent branding for it from the lower garment, and never treat the full outfit as one branded unit."
  },
  "brand_identity": {
- "logo_icon": "the brand's logo icon is a bold black angular silhouette of a roaring feline (saber-tooth cat) head in left-facing profile with an open mouth and one visible fang, its mane rendered as a single sweeping curved speed-line extending back and to the right -- flat, single-color black on a plain white background, no other colors or gradients",
- "wordmark": "the brand name \"SMILODOX\" in bold, black, condensed, all-caps sans-serif lettering",
- "application_on_garment": "How this branding physically appears varies by product -- the icon/wordmark descriptions above are ground truth for what the graphic itself looks like, NOT a requirement that every product carries both elements or carries them as a tag. Some products have it as two small separate white fabric tags (one icon-only, one wordmark-only) sewn at a side seam or waistband; other products instead have only the \"SMILODOX\" wordmark woven or printed directly into the fabric of a waistband or band, with no separate tag and no icon at all. Always match what is actually visible in that specific product's own reference photos first (whether branding appears, and where) -- use the icon/wordmark description above only to sharpen a branding element that IS present but small or blurry in those references, never to add a tag, icon or wordmark that the references don't show."
+ "logo_icon": "the brand's logo icon is a minimal angular feline head silhouette in left-facing profile -- sharp straight polygon edges only, no curves, no open mouth or fang. A sharp upward angular spike (alert ear) tops the head; snout comes to a point. Behind it, two parallel swept-back strokes of different lengths taper to points on the right (twin speed-streaks, not one curved line). Flat solid black, no gradients, on a plain white background.",
+ "wordmark": "the brand name \"SMILODOX\" in bold, black, heavy, condensed, all-caps geometric sans-serif lettering with straight-edged blocky letterforms and no serifs",
+ "application_on_garment": "How branding appears varies by product -- the icon/wordmark descriptions above are ground truth for the graphics themselves, not a requirement to use both. Some products carry it as a small tag (icon-only or wordmark-only); others have only \"SMILODOX\" woven/printed into the fabric, no icon. CRITICAL: a single product carries EITHER the icon OR the wordmark, NEVER both together -- match whichever start_image/end_image actually show, and never copy the mark style from a different product onto this one. Reproduce it at the natural size and distance it appears in the reference photos -- never zoom or crop in specifically to feature it; if it is small in the references, it stays small here too."
  },
  "camera_and_environment": {
- "camera": "camera remains completely locked within each individual shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
+ "camera": "camera remains completely locked for the entire 10-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
  "background": "seamless light-grey studio backdrop",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
  },
  "model": {
- "identity": "same adult model throughout all 3 shots -- her face (bone structure, eyes, nose, mouth, skin tone) must exactly match the real person shown in the reference photos; never generate a different-looking, generic or stylized face, and never let facial identity drift between shots",
- "expression": "relaxed, confident, subtle natural smile, direct eye contact when face is visible; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
- "feet_rule": "feet remain naturally grounded and stable; a repositioning foot may lift minimally in a biomechanically natural step before planting fully — no tiptoes, floating feet or sustained heel lifting",
- "movement_rule": "only the choreography defined per shot — no improvised movement, no walking"
+ "identity": "same adult model throughout the shot -- her face (bone structure, eyes, nose, mouth, skin tone) must exactly match the real person shown in the reference photos; never generate a different-looking, generic or stylized face, and never let facial identity drift over the course of the turn",
+ "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
+ "expression": "relaxed, confident, subtle natural smile, direct eye contact when facing camera; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
+ "feet_rule": "feet remain naturally grounded and stable throughout the turn; weight shifts smoothly between feet as the body rotates -- no tiptoes, floating feet, sustained heel lifting or foot sliding",
+ "movement_rule": "only the single continuous turn defined below — no improvised movement, no walking, no steps away from center"
  },
- "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit, especially in the close-up.",
+ "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit as the body turns.",
  "consistency_control": {
- "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing logic, same pacing. They do not need to be pixel-identical.",
- "fixed_across_generations": ["camera framing per shot", "cut timing (3.33s / 3.33s / 3.34s)", "lighting setup", "background", "pose sequence logic"],
+ "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing, same pacing of the turn. They do not need to be pixel-identical.",
+ "fixed_across_generations": ["camera framing (locked, unchanged for the full 10s)", "turn direction and timing", "lighting setup", "background"],
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "The pose and framing described per shot are fixed and should repeat as consistently as the generation system allows across every generation. Only the visual texture of the movement — how the fabric responds — may vary slightly.",
+ "choreography_discipline": "This is ONE single continuous 10-second shot -- there are no cuts and no separate shots. Motion must flow smoothly and continuously through the entire duration, in the pacing defined below; the timing windows mark one continuous physical motion path, not discrete keyframes. Never speed up into a pose and then freeze/pause, never a sudden snap -- only gradual, evenly-paced continuous turning motion throughout.",
  "shots": [
  {
- "id": "shot_01_front_full_body",
- "reference": "start_image",
- "duration_seconds": 3.33,
- "view": "direct front, full body, both shoes visible, model centered",
- "framing": "headroom fixed: crown of head to top of frame = one head-height",
- "choreography": "model holds a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact"
- },
- {
- "id": "shot_02_lower_garment_closeup",
- "reference": "start_image",
- "duration_seconds": 3.33,
- "view": "hard cut to a static close framing on the SAME front-facing lower garment — no camera movement, direct cut only",
- "framing": "tight static crop from waist to knee, fabric/texture/waistband/print of the lower garment clearly visible and sharp",
- "choreography": "model holds the pose steady, only extremely subtle natural breathing motion, no repositioning"
- },
- {
- "id": "shot_03_back_view",
- "reference": "end_image",
- "duration_seconds": 3.34,
- "view": "hard cut to a direct rear view, full body, matching end_image exactly",
- "framing": "same full-body framing as shot 1, model perfectly centered",
- "choreography": "model holds a relaxed back-facing stance matching end_image exactly, subtle natural weight sway"
+ "id": "shot_01_360_turn",
+ "duration_seconds": 10,
+ "view": "single continuous shot, full body always in frame, camera completely locked -- the model smoothly and continuously turns her own body in place, starting facing front exactly as start_image shows, rotating through a natural side profile, ending facing away exactly as end_image shows. One fluid, continuous rotation, never a series of cuts or poses, and never a close-up or zoom at any point",
+ "framing": "full body always visible including both shoes, consistent headroom the entire 10 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
+ "choreography": {
+ "0.0-1.5s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
+ "1.5-8.0s": "smooth, continuous, evenly-paced rotation of the whole body in place, weight shifting naturally with the turn, passing through a natural side profile around the midpoint -- one fluid motion, never a snap, never a pause",
+ "8.0-10.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
+ }
  }
  ],
  "negative_prompt": [
- "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift",
+ "camera movement", "zoom", "pan", "tilt", "tracking", "camera shake", "camera drift", "any cut or scene change", "close-up crop", "unmotivated zoom on logo or fabric", "camera framing change mid-shot",
  "tiptoes", "sustained heel lifting", "floating feet", "foot sliding", "foot-ground penetration",
  "garment redesign", "garment morphing", "frame-to-frame garment morphing", "color drift", "logo drift", "blank logo tag", "missing logo graphic", "illegible logo", "invented print pattern", "altered print pattern", "generic pattern substitution", "invented details",
  "fabric hallucination", "invented fabric texture", "generic fabric substitution", "changed fabric knit or weave", "wrong fabric sheen",
  "different face", "generic face", "stylized face", "face identity drift", "face swap", "altered facial features", "different model",
+ "desaturated colors", "muted colors", "washed-out color", "flattened color contrast", "dull or lifeless garment color",
+ "jerky movement", "sudden pose snap", "abrupt motion", "staccato motion", "freeze-frame pause mid-turn", "hectic movement", "rushed weight shift",
+ "invented logo icon", "added brand icon not shown in references", "invented tag graphic", "generic default logo substituted for actual mark", "logo style copied from a different product", "icon and wordmark combined on one garment", "curved or rounded logo icon shape", "roaring open-mouth logo face", "outfit treated as a single product", "branding copied across the full outfit", "duplicate logo tag", "extra brand tag not in references",
  "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
  "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
- "walking", "turning", "spinning", "exaggerated or sensual movement",
- "extra limbs", "anatomical distortion", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "walking", "spinning too fast", "exaggerated or sensual movement",
+ "extra limbs", "anatomical distortion", "malformed hands", "extra or fused fingers", "artifacts where hands touch fabric or skin", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
+ "background morphing", "warped straight seams", "lens flare", "film grain", "vignette", "depth of field blur",
  "text", "watermarks", "background objects", "additional people",
- "cartoon or CGI appearance", "beauty filter",
- "children", "minors", "nudity", "exposed intimate areas", "weapons", "violence",
- "political symbols", "religious imagery", "drug use", "hate symbols"
+ "cartoon or CGI appearance", "beauty filter", "airbrushed skin", "over-smoothed skin", "plastic skin", "waxy skin", "porcelain skin", "digitally painted skin", "uncanny smooth complexion",
+ "non-adult appearance", "unintended skin exposure beyond garment design", "combat implements", "physical altercation",
+ "discriminatory symbols", "religious imagery", "substance use", "hateful imagery"
  ]
 }"""
 
@@ -575,7 +559,7 @@ def seed_templates():
     from datetime import datetime, timezone
     from . import db
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     with db.get_conn() as conn:
         for key, t in TEMPLATES.items():
             conn.execute(

@@ -15,12 +15,15 @@ DB_PATH = INTERNAL_DIR / "state.db"
 UPLOADS_DIR = INTERNAL_DIR / "uploads"
 OUTPUT_DIR = DATA_ROOT / "output"
 MANIFESTS_DIR = INTERNAL_DIR / "manifests"
-# Master brand-mark variants (e.g. icon_wordmark_tag.png, script_wordmark_tonal.png)
-# the team copies from into a product's own folder as that product's "logo" shot --
-# see drive_scan.py's optional "logo" shot type.
+# Preview thumbnails (qa.ensure_thumbnail) -- kept out of OUTPUT_DIR so the
+# Shared Drive output/ folder the team browses only ever contains the actual
+# generated videos, never the internal .jpg previews the dashboard uses.
+THUMBNAILS_DIR = INTERNAL_DIR / "thumbnails"
+# Currently unused by the pipeline (the per-product logo-reference-image feature
+# this was built for was reverted) -- kept in case that gets revisited later.
 BRAND_ASSETS_DIR = DATA_ROOT / "brand_assets"
 
-for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, BRAND_ASSETS_DIR):
+for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, THUMBNAILS_DIR, BRAND_ASSETS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 WORKER_CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", "3"))
@@ -34,4 +37,4 @@ QA_DURATION_TOLERANCE_SECONDS = float(os.environ.get("QA_DURATION_TOLERANCE_SECO
 DEFAULT_ASPECT_RATIO = "9:16"
 DEFAULT_RESOLUTION = "1080p"
 
-SUPPORTED_MODELS = ["seedance_2_0", "kling3_0", "gemini_omni"]
+SUPPORTED_MODELS = ["kling3_0", "gemini_omni"]

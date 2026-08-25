@@ -13,16 +13,6 @@ Shot types (team's own naming, matches their existing photography workflow):
   fullback    - full body, back view
   detail_one  - product detail close-up (team shoots detail_one/detail_two but only
                 detail_one is ever used here)
-
-Optional 5th shot type:
-  logo        - close-up of this product's actual brand mark/tag, used as image5 so
-                the model has a clean ground-truth graphic to reproduce instead of
-                guessing from a small/blurry tag in the other 4 photos. Not required
-                for a folder to count as "complete" -- drop in a copy of whichever
-                master variant from config.BRAND_ASSETS_DIR matches what this
-                product actually carries (the brand uses more than one visual style
-                across product lines), or skip it entirely if the garment carries no
-                visible branding.
 """
 
 from pathlib import Path
@@ -30,21 +20,28 @@ from typing import Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
-SHOT_TYPES = ["full", "front", "fullback", "detail_one", "logo"]
+SHOT_TYPES = ["full", "front", "fullback", "detail_one"]
 
 # Fixed submission order expected by the prompt templates (image1..image4).
 SHOT_ORDER = ["full", "front", "fullback", "detail_one"]
 
-# Bonus shots appended after SHOT_ORDER when present, but never required for a
-# folder to count as "complete" and never added for the 2-image models below.
-OPTIONAL_SHOT_TYPES = ["logo"]
-
 GARMENT_FOLDER_NAMES = {"oberteil": "oberteil", "unterteil": "unterteil"}
 
-# Common shorthand/alternate names people naturally use instead of the canonical
-# name. detail_two also maps to the detail_one slot -- the team shoots both but
-# only ever uses one per product, so whichever one is actually present should work.
-SHOT_TYPE_ALIASES = {"detail": "detail_one", "detail_two": "detail_one", "back": "fullback"}
+# Common shorthand/alternate names (English and German) people naturally use
+# instead of the canonical name -- purely alternate wording for the SAME photo,
+# never a different shot content (e.g. a side-angle body shot is NOT an alias of
+# "front", since that's a different photo entirely -- give it its own shot type
+# instead of aliasing it). detail_two also maps to detail_one -- the team shoots
+# both but only ever uses one per product, so whichever is present should work.
+_SHOT_TYPE_ALIAS_GROUPS = {
+    "full": ["fullfront", "front_full", "frontfull", "frontview", "front_view", "ganzkoerper", "ganzkörper", "vorne"],
+    "front": ["closeup", "close_up", "frontcloseup", "front_closeup", "nahaufnahme"],
+    "fullback": ["back", "backfull", "back_full", "backview", "back_view", "rueckansicht", "rückansicht", "hinten"],
+    "detail_one": ["detail", "detail_two", "detailone", "detail_shot", "makro", "macro"],
+}
+SHOT_TYPE_ALIASES = {
+    alias: canonical for canonical, aliases in _SHOT_TYPE_ALIAS_GROUPS.items() for alias in aliases
+}
 
 
 def _match_shot_type(stem: str) -> Optional[str]:
@@ -131,11 +128,8 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
 
 
 def ordered_reference_paths(images: dict) -> list[str]:
-    """Reference paths in the fixed image1..image4 order, skipping missing shots,
-    plus any present optional shots (e.g. logo) appended as image5+."""
-    ordered = [images[shot] for shot in SHOT_ORDER if shot in images]
-    ordered += [images[shot] for shot in OPTIONAL_SHOT_TYPES if shot in images]
-    return ordered
+    """Reference paths in the fixed image1..image4 order, skipping missing shots."""
+    return [images[shot] for shot in SHOT_ORDER if shot in images]
 
 
 # Models limited to a start/end image pair (see higgsfield_adapter._build_flags)

@@ -26,7 +26,10 @@ app.add_middleware(
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    # Millisecond precision + trailing "Z" (not "+00:00" with 6-digit microseconds)
+    # -- the latter parses inconsistently across browsers (notably Safari), which
+    # showed up as wrong "time ago" values in the dashboard.
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 @app.on_event("startup")
@@ -64,6 +67,7 @@ def _insert_job(
     resolution: Optional[str],
     reference_paths: list,
     dry_run: bool,
+    mode: Optional[str] = None,
 ) -> str:
     if model not in config.SUPPORTED_MODELS:
         raise HTTPException(400, f"unsupported model '{model}', expected one of {config.SUPPORTED_MODELS}")
@@ -75,8 +79,8 @@ def _insert_job(
             """
             INSERT INTO clips (
                 job_id, product_id, template_key, prompt, model, duration, aspect_ratio, resolution,
-                reference_paths_json, dry_run, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                mode, reference_paths_json, dry_run, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
             """,
             (
                 job_id,
@@ -87,6 +91,7 @@ def _insert_job(
                 duration,
                 aspect_ratio,
                 resolution,
+                mode,
                 json.dumps(reference_paths) if reference_paths else None,
                 1 if dry_run else 0,
                 now,
@@ -122,6 +127,7 @@ async def create_job(
     duration: Optional[float] = Form(None),
     aspect_ratio: Optional[str] = Form(None),
     resolution: Optional[str] = Form(None),
+    mode: Optional[str] = Form(None),
     product_id: Optional[str] = Form(None),
     dry_run: bool = Form(False),
     references: list[UploadFile] = File(default=[]),
@@ -149,6 +155,7 @@ async def create_job(
         resolution or config.DEFAULT_RESOLUTION,
         reference_paths,
         dry_run,
+        mode,
     )
     return JobOut(job_id=job_id)
 
@@ -248,13 +255,19 @@ async def preview_drive_scan(body: DriveScanIn):
 
 @app.get("/jobs/batch/drive-scan/image")
 async def drive_scan_image(path: str):
-    """Serves a single reference-image file by absolute path for scan-preview thumbnails."""
+    """Serves a single reference-image file by absolute path for scan-preview thumbnails.
+
+    no-store because the team edits/replaces these files on disk directly (e.g.
+    swapping a bad reference photo) -- the URL (same path) never changes when they
+    do, so browsers must never cache this response or a stale image lingers in the
+    preview after a real, on-disk swap.
+    """
     file_path = Path(path)
     if file_path.suffix.lower() not in drive_scan.IMAGE_EXTENSIONS:
         raise HTTPException(400, "not a recognized image file")
     if not file_path.is_file():
         raise HTTPException(404, "file not found")
-    return FileResponse(file_path)
+    return FileResponse(file_path, headers={"Cache-Control": "no-store"})
 
 
 class DriveScanCommitIn(BaseModel):
@@ -262,6 +275,7 @@ class DriveScanCommitIn(BaseModel):
     default_template_key: Optional[str] = None
     model: str
     resolution: Optional[str] = None
+    mode: Optional[str] = None
     dry_run: bool = False
     include_folders: Optional[list[str]] = None
 
@@ -300,6 +314,7 @@ async def commit_drive_scan(body: DriveScanCommitIn):
                 resolution=body.resolution or t["resolution"],
                 reference_paths=reference_paths,
                 dry_run=body.dry_run,
+                mode=body.mode,
             )
             created.append(job_id)
         except Exception as exc:  # noqa: BLE001 - collected per-variant, scan keeps going
@@ -391,13 +406,27 @@ async def retry_job(job_id: str):
         row = conn.execute("SELECT * FROM clips WHERE job_id = ?", (job_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "job not found")
+
+        # Re-resolve the prompt from the current template on every retry -- the
+        # stored `prompt` is a frozen snapshot from whenever the job was first
+        # created, so without this a retry after editing templates.py (e.g. a
+        # wording fix) would silently keep resubmitting the old, pre-fix prompt.
+        # Only template-backed jobs can be refreshed this way; a manually
+        # supplied prompt (no template_key) has no template to re-resolve from.
+        prompt = row["prompt"]
+        if row["template_key"]:
+            try:
+                prompt = templates.resolve_prompt_text(row["template_key"], row["model"])
+            except KeyError:
+                pass
+
         conn.execute(
             """
             UPDATE clips
-            SET status = 'pending', retry_count = 0, next_retry_at = NULL, error_message = NULL, updated_at = ?
+            SET status = 'pending', prompt = ?, retry_count = 0, next_retry_at = NULL, error_message = NULL, updated_at = ?
             WHERE job_id = ?
             """,
-            (_now_iso(), job_id),
+            (prompt, _now_iso(), job_id),
         )
         db.log_event(conn, job_id, "pending", "manual retry")
     return {"ok": True}
@@ -413,6 +442,7 @@ class CostEstimateIn(BaseModel):
     duration: float
     aspect_ratio: str = config.DEFAULT_ASPECT_RATIO
     resolution: Optional[str] = config.DEFAULT_RESOLUTION
+    mode: Optional[str] = None
     prompt: str = "estimate"
 
 
@@ -420,7 +450,9 @@ class CostEstimateIn(BaseModel):
 async def cost_estimate(body: CostEstimateIn):
     """Live cost lookup for the UI -- no job is created, nothing touches the DB."""
     try:
-        credits = await hf.estimate_cost(body.model, body.prompt, body.duration, body.aspect_ratio, body.resolution)
+        credits = await hf.estimate_cost(
+            body.model, body.prompt, body.duration, body.aspect_ratio, body.resolution, body.mode
+        )
     except hf.GenerationError as exc:
         raise HTTPException(400, str(exc))
     return {"credits": credits}

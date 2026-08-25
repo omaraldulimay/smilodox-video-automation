@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { IconCheck, IconAlertTriangle, IconRefresh, IconFolder } from '../components/Icons'
-import { RESOLUTION_ALLOWLIST } from '../modelResolutions'
+import { RESOLUTION_ALLOWLIST, modeLabel } from '../modelResolutions'
 
-// 'logo' is optional (see backend/drive_scan.py OPTIONAL_SHOT_TYPES) -- shown as
-// a bonus thumbnail slot but never required for a group to count as complete.
-const SHOT_ORDER = ['full', 'front', 'fullback', 'detail_one', 'logo']
+const SHOT_ORDER = ['full', 'front', 'fullback', 'detail_one']
 
 // Kling only ever uses full+fullback (see backend/drive_scan.py
 // TWO_IMAGE_MODEL_SHOT_ORDER) -- showing all 4 thumbnails would suggest front/
-// detail_one/logo matter for Kling when they're silently ignored.
+// detail_one matter for Kling when they're silently ignored.
 const MODEL_SHOT_ORDER = {
   kling3_0: ['full', 'fullback'],
 }
@@ -73,6 +71,7 @@ export default function BatchUpload({ onSwitchToDashboard }) {
   const [defaultTemplateKey, setDefaultTemplateKey] = useState('')
   const [model, setModel] = useState('')
   const [resolution, setResolution] = useState('')
+  const [mode, setMode] = useState('')
   const [dryRun, setDryRun] = useState(false)
 
   const [scanning, setScanning] = useState(false)
@@ -98,10 +97,27 @@ export default function BatchUpload({ onSwitchToDashboard }) {
     })
   }, [])
 
+  // The scan itself finds every product under folderPath regardless of garment
+  // type (oberteil/unterteil folders are usually scanned together from a shared
+  // parent) -- only show/select the ones matching the currently chosen template
+  // so switching the dropdown acts as a live filter, not just an undetected-folder
+  // fallback.
+  const visibleGroups = scanResult ? scanResult.groups.filter((g) => g.template_key === defaultTemplateKey) : []
+
+  useEffect(() => {
+    setSelectedFolders((prev) => {
+      const visibleFolders = new Set(visibleGroups.map((g) => g.folder))
+      const next = new Set([...prev].filter((f) => visibleFolders.has(f)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [defaultTemplateKey, scanResult]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedModelObj = models.find((m) => m.model === model)
   const resolutionParam = selectedModelObj?.schema?.params?.find((p) => p.name === 'resolution')
   const allowlist = RESOLUTION_ALLOWLIST[model]
   const resolutionOptions = allowlist ? (resolutionParam?.enum || []).filter((r) => allowlist.includes(r)) : resolutionParam?.enum || []
+  const modeParam = selectedModelObj?.schema?.params?.find((p) => p.name === 'mode')
+  const modeOptions = modeParam?.enum || []
   const shotOrder = MODEL_SHOT_ORDER[model] || SHOT_ORDER
 
   useEffect(() => {
@@ -114,6 +130,12 @@ export default function BatchUpload({ onSwitchToDashboard }) {
     } else {
       setResolution('')
     }
+  }, [model]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // Same idea as the resolution reset above -- a mode picked for one model
+    // (e.g. Kling's "4k") isn't a valid value for another.
+    setMode(modeParam ? modeParam.default || modeOptions[0] || '' : '')
   }, [model]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -130,10 +152,11 @@ export default function BatchUpload({ onSwitchToDashboard }) {
         duration: t.duration,
         aspect_ratio: t.aspect_ratio,
         resolution: resolutionParam ? resolution : t.resolution,
+        mode: modeParam ? mode : undefined,
       })
       .then((res) => setCostPerJob(res.credits))
       .catch((err) => setCostError(err.message))
-  }, [model, resolution, defaultTemplateKey, templates]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [model, resolution, mode, defaultTemplateKey, templates]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleScan() {
     if (!folderPath) return
@@ -184,6 +207,7 @@ export default function BatchUpload({ onSwitchToDashboard }) {
         default_template_key: defaultTemplateKey || null,
         model,
         resolution: resolutionParam && resolution ? resolution : null,
+        mode: modeParam && mode ? mode : null,
         dry_run: dryRun,
         include_folders: Array.from(selectedFolders),
       })
@@ -264,6 +288,26 @@ export default function BatchUpload({ onSwitchToDashboard }) {
               </div>
             )}
 
+            {modeParam && modeOptions.length > 0 && (
+              <div className="field">
+                <div className="field-label">
+                  Modus {modeOptions.length === 1 && <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(fix)</span>}
+                </div>
+                <select
+                  className="select"
+                  value={mode}
+                  disabled={modeOptions.length === 1}
+                  onChange={(e) => setMode(e.target.value)}
+                >
+                  {modeOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {modeLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div
               style={{
                 display: 'flex',
@@ -303,11 +347,11 @@ export default function BatchUpload({ onSwitchToDashboard }) {
                   className="btn-link"
                   onClick={() =>
                     setSelectedFolders((prev) =>
-                      prev.size === scanResult.groups.length ? new Set() : new Set(scanResult.groups.map((g) => g.folder))
+                      prev.size === visibleGroups.length ? new Set() : new Set(visibleGroups.map((g) => g.folder))
                     )
                   }
                 >
-                  {selectedFolders.size === scanResult.groups.length ? 'Alle abwählen' : 'Alle auswählen'}
+                  {selectedFolders.size === visibleGroups.length ? 'Alle abwählen' : 'Alle auswählen'}
                 </button>
                 <button className="btn-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleScan}>
                   <IconRefresh />
@@ -317,7 +361,7 @@ export default function BatchUpload({ onSwitchToDashboard }) {
             </div>
 
             <div style={{ border: '1px solid var(--border-light)', borderRadius: 6, overflow: 'hidden', marginBottom: 12, maxHeight: 440, overflowY: 'auto' }}>
-              {scanResult.groups.map((g) => {
+              {visibleGroups.map((g) => {
                 const selected = selectedFolders.has(g.folder)
                 return (
                   <div
@@ -351,20 +395,25 @@ export default function BatchUpload({ onSwitchToDashboard }) {
                   </div>
                 )
               })}
-              {scanResult.groups.length === 0 && (
+              {visibleGroups.length === 0 && (
                 <div style={{ padding: 16, fontSize: 12, color: 'var(--text-faint)' }}>
-                  Keine passenden Bilder gefunden (erwartet: ein Ordner pro Produkt mit full.jpg, front.jpg, fullback.jpg, detail_one.jpg, optional logo.jpg).
+                  {scanResult.groups.length === 0
+                    ? 'Keine passenden Bilder gefunden (erwartet: ein Ordner pro Produkt mit full.jpg, front.jpg, fullback.jpg, detail_one.jpg).'
+                    : 'Keine Produkte für dieses Template in diesem Ordner gefunden.'}
                 </div>
               )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {selectedFolders.size} von {scanResult.total} ausgewählt
-                {scanResult.incomplete > 0 && (
+                {selectedFolders.size} von {visibleGroups.length} ausgewählt
+                {visibleGroups.some((g) => !g.complete) && (
                   <>
                     {' '}
-                    · <span style={{ color: 'var(--amber-text)', fontWeight: 600 }}>{scanResult.incomplete} unvollständig</span>
+                    ·{' '}
+                    <span style={{ color: 'var(--amber-text)', fontWeight: 600 }}>
+                      {visibleGroups.filter((g) => !g.complete).length} unvollständig
+                    </span>
                   </>
                 )}
                 {scanResult.missing_template.length > 0 && (
@@ -380,7 +429,7 @@ export default function BatchUpload({ onSwitchToDashboard }) {
             </div>
 
             {(() => {
-              const jobCount = scanResult.groups.filter((g) => selectedFolders.has(g.folder) && (g.template_key || defaultTemplateKey)).length
+              const jobCount = visibleGroups.filter((g) => selectedFolders.has(g.folder)).length
               if (jobCount <= 0 || costPerJob === null) return null
               return (
                 <div

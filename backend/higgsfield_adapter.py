@@ -116,6 +116,7 @@ async def _build_flags(
     duration: float,
     aspect_ratio: str,
     resolution: Optional[str],
+    mode: Optional[str] = None,
 ) -> tuple[list[str], int]:
     """Builds only the flags the model's own schema actually declares.
 
@@ -146,9 +147,10 @@ async def _build_flags(
     if resolution and "resolution" in param_names:
         flags += ["--resolution", _valid_or_default(resolution, "resolution")]
     if "mode" in param_names:
-        # Explicit standard quality/speed tier for all models that expose it
-        # (rather than relying on the schema's own default), per team decision.
-        flags += ["--mode", _valid_or_default("std", "mode")]
+        # Explicit quality/speed tier for all models that expose it (rather than
+        # relying on the schema's own default). Defaults to "std" per team
+        # decision, but can be overridden (e.g. Kling's "4k" mode) per job.
+        flags += ["--mode", _valid_or_default(mode or "std", "mode")]
 
     reference_paths = reference_paths or []
     dropped_count = 0
@@ -175,8 +177,9 @@ async def estimate_cost(
     duration: float,
     aspect_ratio: str,
     resolution: Optional[str] = None,
+    mode: Optional[str] = None,
 ) -> float:
-    flags, _ = await _build_flags(model, prompt, None, duration, aspect_ratio, resolution)
+    flags, _ = await _build_flags(model, prompt, None, duration, aspect_ratio, resolution, mode)
     args = ["generate", "cost", model] + flags
     code, stdout, stderr = await _run_cli(args, timeout_seconds=30)
     if code != 0:
@@ -206,6 +209,7 @@ async def generate(
     aspect_ratio: str,
     resolution: Optional[str],
     wait_timeout: str,
+    mode: Optional[str] = None,
 ) -> dict:
     """Submits a real generation job and blocks (via --wait) until it finishes.
 
@@ -213,7 +217,7 @@ async def generate(
     the model's media slots couldn't fit all supplied reference images.
     Raises GenerationError (transient/permanent) on failure.
     """
-    flags, dropped_count = await _build_flags(model, prompt, reference_paths, duration, aspect_ratio, resolution)
+    flags, dropped_count = await _build_flags(model, prompt, reference_paths, duration, aspect_ratio, resolution, mode)
     args = ["generate", "create", model] + flags
     args += ["--json", "--wait", "--wait-timeout", wait_timeout]
 

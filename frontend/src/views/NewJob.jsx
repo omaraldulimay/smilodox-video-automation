@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { IconUpload, IconX } from '../components/Icons'
-import { RESOLUTION_ALLOWLIST } from '../modelResolutions'
+import { RESOLUTION_ALLOWLIST, modeLabel } from '../modelResolutions'
 
 const FULL_SLOTS = ['Front', 'Close-up', 'Back', 'Detail']
 
@@ -101,6 +101,7 @@ export default function NewJob({ onJobCreated }) {
   const [dragOverIndex, setDragOverIndex] = useState(null)
   const [dryRun, setDryRun] = useState(false)
   const [resolution, setResolution] = useState('')
+  const [mode, setMode] = useState('')
   const [cost, setCost] = useState(null)
   const [costError, setCostError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -124,6 +125,8 @@ export default function NewJob({ onJobCreated }) {
   const resolutionParam = selectedModelObj?.schema?.params?.find((p) => p.name === 'resolution')
   const allowlist = RESOLUTION_ALLOWLIST[model]
   const resolutionOptions = allowlist ? (resolutionParam?.enum || []).filter((r) => allowlist.includes(r)) : resolutionParam?.enum || []
+  const modeParam = selectedModelObj?.schema?.params?.find((p) => p.name === 'mode')
+  const modeOptions = modeParam?.enum || []
 
   useEffect(() => {
     // Model switch can change the expected image count/order (e.g. 4 -> 2 for
@@ -147,6 +150,12 @@ export default function NewJob({ onJobCreated }) {
   }, [model]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // Same idea as the resolution reset above -- a mode picked for one model
+    // (e.g. Kling's "4k") isn't a valid value for another.
+    setMode(modeParam ? modeParam.default || modeOptions[0] || '' : '')
+  }, [model]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!selectedTemplate || !model) return
     setCost(null)
     setCostError('')
@@ -156,10 +165,11 @@ export default function NewJob({ onJobCreated }) {
         duration: selectedTemplate.duration,
         aspect_ratio: selectedTemplate.aspect_ratio,
         resolution: resolutionParam ? resolution : selectedTemplate.resolution,
+        mode: modeParam ? mode : undefined,
       })
       .then((res) => setCost(res.credits))
       .catch((err) => setCostError(err.message))
-  }, [model, selectedTemplate?.template_key, resolution])
+  }, [model, selectedTemplate?.template_key, resolution, mode])
 
   function setFileAt(index, file) {
     setFiles((prev) => {
@@ -187,6 +197,7 @@ export default function NewJob({ onJobCreated }) {
       form.append('template_key', templateKey)
       form.append('dry_run', String(dryRun))
       if (resolutionParam && resolution) form.append('resolution', resolution)
+      if (modeParam && mode) form.append('mode', mode)
       files.filter(Boolean).forEach((f) => form.append('references', f))
       const result = await api.createJob(form)
       setFiles([])
@@ -245,6 +256,26 @@ export default function NewJob({ onJobCreated }) {
               {resolutionOptions.map((r) => (
                 <option key={r} value={r}>
                   {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {modeParam && modeOptions.length > 0 && (
+          <div className="field">
+            <div className="field-label">
+              Modus {modeOptions.length === 1 && <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(fix)</span>}
+            </div>
+            <select
+              className="select"
+              value={mode}
+              disabled={modeOptions.length === 1}
+              onChange={(e) => setMode(e.target.value)}
+            >
+              {modeOptions.map((m) => (
+                <option key={m} value={m}>
+                  {modeLabel(m)}
                 </option>
               ))}
             </select>
