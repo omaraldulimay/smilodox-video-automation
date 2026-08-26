@@ -115,10 +115,10 @@ def _extract_result_url(job: dict) -> Optional[str]:
     return None
 
 
-async def _download(url: str, job_id: str):
+async def _download(url: str, job_id: str, dest_dir):
     import httpx
 
-    dest = config.OUTPUT_DIR / f"{job_id}.mp4"
+    dest = dest_dir / f"{job_id}.mp4"
     async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
         async with client.stream("GET", url) as response:
             response.raise_for_status()
@@ -156,7 +156,9 @@ async def _process_job(row):
         if not result_url:
             raise hf.GenerationError(f"job finished but no result URL found: {job}", transient=False)
 
-        output_path = await _download(result_url, job_id)
+        dest_dir = config.OUTPUT_SUBDIRS.get(row["template_key"], config.OUTPUT_DIR)
+        output_path = await _download(result_url, job_id, dest_dir)
+        await qa.strip_audio(output_path)
         # Gemini Omni can't natively output above 720p -- upscale in place so
         # every completed clip meets Zalando's stated minimum resolution, at no
         # extra Higgsfield cost. No-op for models already at/above 1080p.

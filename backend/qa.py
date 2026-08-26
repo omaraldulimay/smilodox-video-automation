@@ -117,6 +117,51 @@ async def ensure_thumbnail(video_path: Path) -> Path:
     return thumb_path
 
 
+async def _has_audio_stream(file_path: str) -> bool:
+    proc = await asyncio.create_subprocess_exec(
+        "ffprobe", "-v", "quiet", "-select_streams", "a",
+        "-show_entries", "stream=codec_type", "-of", "json",
+        file_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    stdout_b, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return False
+    try:
+        info = json.loads(stdout_b)
+    except json.JSONDecodeError:
+        return False
+    return bool(info.get("streams"))
+
+
+async def strip_audio(video_path: Path) -> bool:
+    """Removes the audio track from a video in place via ffmpeg, if it has one.
+
+    Zalando product clips must be silent -- generated videos sometimes carry a
+    (usually silent, but not guaranteed) audio track from the source model.
+    Returns True if an audio track was actually removed.
+    """
+    if not await _has_audio_stream(str(video_path)):
+        return False
+
+    tmp_path = video_path.with_suffix(".noaudio.mp4")
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-y", "-i", str(video_path),
+        "-c:v", "copy", "-an",
+        str(tmp_path),
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc.wait()
+    if proc.returncode != 0 or not tmp_path.is_file():
+        tmp_path.unlink(missing_ok=True)
+        return False
+
+    tmp_path.replace(video_path)
+    return True
+
+
 def check_against_target(result: QAResult, target_duration: float) -> tuple[bool, str]:
     if not result.passed:
         return False, result.detail

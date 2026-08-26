@@ -14,6 +14,14 @@ INTERNAL_DIR = DATA_ROOT / "Datenbank"
 DB_PATH = INTERNAL_DIR / "state.db"
 UPLOADS_DIR = INTERNAL_DIR / "uploads"
 OUTPUT_DIR = DATA_ROOT / "output"
+# Finished videos are sorted into these by the job's template_key (oberteil/
+# unterteil) so the team can find a product's video without scanning one flat
+# folder of job-id-named files. A job with no recognized template_key (e.g. a
+# manually supplied prompt) falls back to OUTPUT_DIR itself.
+OUTPUT_SUBDIRS = {
+    "oberteil": OUTPUT_DIR / "Oberteil",
+    "unterteil": OUTPUT_DIR / "Unterteil",
+}
 MANIFESTS_DIR = INTERNAL_DIR / "manifests"
 # Preview thumbnails (qa.ensure_thumbnail) -- kept out of OUTPUT_DIR so the
 # Shared Drive output/ folder the team browses only ever contains the actual
@@ -23,7 +31,7 @@ THUMBNAILS_DIR = INTERNAL_DIR / "thumbnails"
 # this was built for was reverted) -- kept in case that gets revisited later.
 BRAND_ASSETS_DIR = DATA_ROOT / "brand_assets"
 
-for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, THUMBNAILS_DIR, BRAND_ASSETS_DIR):
+for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, THUMBNAILS_DIR, BRAND_ASSETS_DIR, *OUTPUT_SUBDIRS.values()):
     d.mkdir(parents=True, exist_ok=True)
 
 WORKER_CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", "3"))
