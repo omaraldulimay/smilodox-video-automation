@@ -50,33 +50,40 @@ async def probe(file_path: str) -> QAResult:
     return QAResult(True, duration, width, height, codec, "ok")
 
 
-# Target dims per aspect ratio for upscale_to_1080p -- 1.5x a 720p source exactly,
-# matching the 1080p resolution the other models (Seedance/Kling) already output.
-_UPSCALE_TARGETS = {
-    "9:16": (1080, 1920),
-    "16:9": (1920, 1080),
-}
+# Floor for the short side, in px -- matches the 1080p resolution the other
+# models (Kling pro/4k) already output natively.
+_MIN_SHORT_SIDE = 1080
 
 
 async def upscale_to_1080p(video_path: Path, aspect_ratio: str) -> bool:
-    """Upscales a video in place to 1080p via ffmpeg (Lanczos) if it's below that
-    resolution and its aspect ratio is one we know the target dims for.
+    """Upscales a video in place via ffmpeg (Lanczos) if its short side is below
+    _MIN_SHORT_SIDE, preserving the source's own aspect ratio.
 
     This is a plain pixel-dimension upscale (no added real detail) -- it exists
     only to satisfy Zalando's stated minimum resolution for models like Gemini
     Omni that can't natively output above 720p, at zero extra generation cost.
+
+    Deliberately does NOT force a fixed target ratio (e.g. always exactly 9:16):
+    Zalando accepts a RANGE of ratios (1.44-1.8, see the module docstring in
+    templates.py), and Kling's native std-mode output (800x1152, ratio 1.44) is
+    already inside that range. Forcing it to a different fixed ratio like
+    1080x1920 (1.778) would visibly stretch/distort the video -- confirmed by
+    a side-by-side frame comparison on 2026-08-27 after a team member asked
+    whether Kling's crop was as exact as Gemini's; it wasn't, this is the fix.
     Returns True if an upscale was actually performed.
     """
-    target = _UPSCALE_TARGETS.get(aspect_ratio)
-    if target is None:
-        return False
-    target_w, target_h = target
-
     result = await probe(str(video_path))
     if not result.passed or not result.width or not result.height:
         return False
-    if result.width >= target_w and result.height >= target_h:
+
+    short_side = min(result.width, result.height)
+    if short_side >= _MIN_SHORT_SIDE:
         return False
+
+    scale = _MIN_SHORT_SIDE / short_side
+    # Even dimensions -- h264 requires them.
+    target_w = round(result.width * scale / 2) * 2
+    target_h = round(result.height * scale / 2) * 2
 
     tmp_path = video_path.with_suffix(".upscaled.mp4")
     proc = await asyncio.create_subprocess_exec(

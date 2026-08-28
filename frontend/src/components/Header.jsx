@@ -1,9 +1,8 @@
 import { IconCoin } from './Icons'
 
 const TABS = [
-  { id: 'new-job', label: 'Neuer Job' },
-  { id: 'dashboard', label: 'Dashboard' },
   { id: 'batch-upload', label: 'Batch-Upload' },
+  { id: 'dashboard', label: 'Dashboard' },
 ]
 
 export default function Header({ activeTab, onTabChange, stats }) {

@@ -9,3 +9,7 @@ frontend/dist/
 # Runtime data: SQLite DB, uploaded reference images, generated videos --
 # regenerated locally, not source, and may contain real product media.
 data/
+internal_data/
+
+# API keys / secrets -- never committed.
+.env

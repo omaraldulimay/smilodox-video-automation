@@ -1,15 +1,19 @@
 import os
 from pathlib import Path
 
-# Points at the local data directory by default. Once Google Drive Desktop is
-# installed and a team folder is synced, set DATA_ROOT to that folder's path
-# (e.g. via the DATA_ROOT env var) so state.db, uploads/, and output/ sync
-# to the team's shared Drive automatically.
+# Team-visible folder: reference images in, finished videos out. Set via the
+# DATA_ROOT env var to the team's Google Drive Desktop folder so everyone sees
+# the same files.
 DATA_ROOT = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "data"))
 
-# Internal/technical folders the team never needs to browse -- kept in their own
-# subfolder so the Shared Drive root only shows reference-images/ and output/.
-INTERNAL_DIR = DATA_ROOT / "Datenbank"
+# Internal/technical storage -- deliberately NOT inside DATA_ROOT/Drive. Two
+# reasons: (1) so the team's Shared Drive root only ever shows
+# reference-images/ and output/, nothing else to accidentally click into, and
+# (2) state.db is written on every single API request -- letting Google Drive
+# continuously try to sync an actively-written SQLite file risks lock/sync
+# conflicts. Defaults to a local-only folder next to the app.
+INTERNAL_ROOT = Path(os.environ.get("INTERNAL_ROOT", Path(__file__).resolve().parent.parent / "internal_data"))
+INTERNAL_DIR = INTERNAL_ROOT / "Datenbank"
 
 DB_PATH = INTERNAL_DIR / "state.db"
 UPLOADS_DIR = INTERNAL_DIR / "uploads"
@@ -29,7 +33,7 @@ MANIFESTS_DIR = INTERNAL_DIR / "manifests"
 THUMBNAILS_DIR = INTERNAL_DIR / "thumbnails"
 # Currently unused by the pipeline (the per-product logo-reference-image feature
 # this was built for was reverted) -- kept in case that gets revisited later.
-BRAND_ASSETS_DIR = DATA_ROOT / "brand_assets"
+BRAND_ASSETS_DIR = INTERNAL_ROOT / "brand_assets"
 
 for d in (UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, THUMBNAILS_DIR, BRAND_ASSETS_DIR, *OUTPUT_SUBDIRS.values()):
     d.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,10 @@
 #!/bin/bash
-# Starts the backend with DATA_ROOT pointed at the team's Shared Drive
-# (state.db, uploads/, output/, manifests/, reference-images/ all live there
-# so the whole team sees the same data via Drive sync).
+# Starts the backend with DATA_ROOT pointed at the team's Shared Drive --
+# output/ and reference-images/ live there so the whole team sees them via
+# Drive sync. state.db/uploads/manifests/brand_assets live locally instead
+# (internal_data/, see backend/config.py) -- kept out of the Shared Drive on
+# purpose, both to keep its root clean and to avoid Drive trying to sync an
+# actively-written SQLite file.
 set -e
 cd "$(dirname "$0")"
 

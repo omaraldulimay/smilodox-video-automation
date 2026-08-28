@@ -151,6 +151,13 @@ async def _build_flags(
         # relying on the schema's own default). Defaults to "std" per team
         # decision, but can be overridden (e.g. Kling's "4k" mode) per job.
         flags += ["--mode", _valid_or_default(mode or "std", "mode")]
+    if "sound" in param_names:
+        # Zalando PDP videos must be silent, and the audio track was being
+        # stripped again after download anyway (see qa.strip_audio). Generating
+        # without it is also cheaper on Kling -- verified against the live cost
+        # endpoint 2026-08-27: 10s 9:16 drops 20->15 credits (std) and 25->17
+        # (pro); 4k is unchanged at 60.
+        flags += ["--sound", _valid_or_default("off", "sound")]
 
     reference_paths = reference_paths or []
     dropped_count = 0

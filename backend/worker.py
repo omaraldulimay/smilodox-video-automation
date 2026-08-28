@@ -159,9 +159,11 @@ async def _process_job(row):
         dest_dir = config.OUTPUT_SUBDIRS.get(row["template_key"], config.OUTPUT_DIR)
         output_path = await _download(result_url, job_id, dest_dir)
         await qa.strip_audio(output_path)
-        # Gemini Omni can't natively output above 720p -- upscale in place so
-        # every completed clip meets Zalando's stated minimum resolution, at no
-        # extra Higgsfield cost. No-op for models already at/above 1080p.
+        # Some models/modes can't natively output above 720p (Gemini Omni) or
+        # cap below 1080p on their cheapest tier (Kling std, 800x1152) --
+        # upscale in place so every completed clip meets Zalando's stated
+        # minimum resolution, at no extra Higgsfield cost. No-op for anything
+        # already at/above 1080p on its short side (Kling pro/4k).
         upscaled = await qa.upscale_to_1080p(output_path, row["aspect_ratio"])
         await qa.ensure_thumbnail(output_path)
         probe_result = await qa.probe(str(output_path))
