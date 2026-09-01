@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import PageHeader from '../components/PageHeader'
+import CardHeader from '../components/CardHeader'
 import { IconCheck, IconAlertTriangle, IconRefresh, IconFolder } from '../components/Icons'
-import { RESOLUTION_ALLOWLIST, modeLabel } from '../modelResolutions'
+import { RESOLUTION_ALLOWLIST, MODE_ALLOWLIST, modeLabel } from '../modelResolutions'
 
 const SHOT_ORDER = ['full', 'front', 'fullback', 'detail_one']
 
@@ -12,41 +14,109 @@ const MODEL_SHOT_ORDER = {
   kling3_0: ['full', 'fullback'],
 }
 
-function ThumbnailStrip({ images, shotOrder }) {
+function ThumbnailStrip({ images, shotOrder, uncertainShots, onSwap }) {
+  const [dragOverShot, setDragOverShot] = useState(null)
   return (
     <div style={{ display: 'flex', gap: 10, padding: '2px 12px 10px 34px' }}>
       {shotOrder.map((shot) => {
         const path = images?.[shot]
         const filename = path ? path.split('/').pop() : null
+        const uncertain = path && uncertainShots?.includes(shot)
+        const isDragOver = dragOverShot === shot
         return (
           <div key={shot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 64 }}>
             <div
+              draggable={!!path}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', shot)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragEnter={(e) => {
+                if (!path) return
+                e.preventDefault()
+              }}
+              onDragOver={(e) => {
+                if (!path) return
+                e.preventDefault()
+                if (dragOverShot !== shot) setDragOverShot(shot)
+              }}
+              onDragLeave={() => setDragOverShot((s) => (s === shot ? null : s))}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOverShot(null)
+                const draggedShot = e.dataTransfer.getData('text/plain')
+                if (draggedShot && draggedShot !== shot) onSwap?.(draggedShot, shot)
+              }}
               style={{
+                position: 'relative',
                 width: 56,
                 height: 56,
                 borderRadius: 4,
                 overflow: 'hidden',
-                border: path ? '1px solid var(--border)' : '1px dashed var(--text-faint)',
+                border: isDragOver
+                  ? '2px solid var(--accent)'
+                  : uncertain
+                  ? '2px solid #f59e0b'
+                  : path
+                  ? '1px solid var(--border)'
+                  : '1px dashed var(--text-faint)',
                 background: path ? 'transparent' : '#fafafa',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                cursor: path ? 'grab' : 'default',
+                // Safari needs this explicitly -- a plain draggable div (as
+                // opposed to a native <img>/<a>) otherwise often just refuses
+                // to start a drag at all.
+                WebkitUserDrag: path ? 'element' : 'none',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
               }}
+              title={
+                uncertain
+                  ? 'Automatisch nach Reihenfolge zugeordnet -- bitte prüfen und bei Bedarf per Drag & Drop mit einem anderen Bild tauschen'
+                  : path
+                  ? 'Zum Tauschen auf ein anderes Bild ziehen'
+                  : undefined
+              }
             >
               {path ? (
                 <img
                   src={api.driveScanImageUrl(path)}
                   alt={shot}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  draggable={false}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', WebkitUserDrag: 'none' }}
                 />
               ) : (
                 <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>fehlt</span>
+              )}
+              {uncertain && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    right: 2,
+                    fontSize: 12,
+                    lineHeight: 1,
+                    background: '#f59e0b',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: 16,
+                    height: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  !
+                </span>
               )}
             </div>
             <span
               style={{
                 fontSize: 9,
-                color: 'var(--text-faint)',
+                color: uncertain ? '#b45309' : 'var(--text-faint)',
+                fontWeight: uncertain ? 700 : 400,
                 textAlign: 'center',
                 wordBreak: 'break-all',
                 lineHeight: 1.2,
@@ -79,6 +149,15 @@ export default function BatchUpload({ onSwitchToDashboard }) {
   const [scanResult, setScanResult] = useState(null)
   const [selectedFolders, setSelectedFolders] = useState(new Set())
 
+  // Drag & drop lets people fix a wrong shot-type assignment (e.g. "front" and
+  // "detail_one" swapped) right in the preview instead of renaming files in
+  // Drive. imageOverrides is folder -> {shot_type: path}, layered on top of the
+  // scan result and sent to commit so the fix actually sticks. correctedShots
+  // tracks which shots were manually touched so the uncertain-flag warning
+  // clears for them once the person has confirmed/fixed them by hand.
+  const [imageOverrides, setImageOverrides] = useState({})
+  const [correctedShots, setCorrectedShots] = useState({})
+
   const [committing, setCommitting] = useState(false)
   const [commitResult, setCommitResult] = useState(null)
 
@@ -104,6 +183,33 @@ export default function BatchUpload({ onSwitchToDashboard }) {
   // fallback.
   const visibleGroups = scanResult ? scanResult.groups.filter((g) => g.template_key === defaultTemplateKey) : []
 
+  function groupImages(g) {
+    return { ...g.images, ...(imageOverrides[g.folder] || {}) }
+  }
+
+  // Only flag a group as "uncertain" for shots the currently selected model
+  // actually uses (Kling only looks at full+fullback -- a swapped front/detail
+  // shot doesn't matter there) and only for shots the user hasn't already
+  // manually fixed via drag & drop.
+  function groupUncertainShots(g) {
+    const corrected = correctedShots[g.folder]
+    return (g.uncertain_shots || []).filter((s) => shotOrder.includes(s) && !corrected?.has(s))
+  }
+
+  function handleSwap(folder, shotA, shotB) {
+    setImageOverrides((prev) => {
+      const group = scanResult.groups.find((gr) => gr.folder === folder)
+      const current = { ...group.images, ...(prev[folder] || {}) }
+      return { ...prev, [folder]: { ...(prev[folder] || {}), [shotA]: current[shotB], [shotB]: current[shotA] } }
+    })
+    setCorrectedShots((prev) => {
+      const set = new Set(prev[folder] || [])
+      set.add(shotA)
+      set.add(shotB)
+      return { ...prev, [folder]: set }
+    })
+  }
+
   useEffect(() => {
     setSelectedFolders((prev) => {
       const visibleFolders = new Set(visibleGroups.map((g) => g.folder))
@@ -117,7 +223,8 @@ export default function BatchUpload({ onSwitchToDashboard }) {
   const allowlist = RESOLUTION_ALLOWLIST[model]
   const resolutionOptions = allowlist ? (resolutionParam?.enum || []).filter((r) => allowlist.includes(r)) : resolutionParam?.enum || []
   const modeParam = selectedModelObj?.schema?.params?.find((p) => p.name === 'mode')
-  const modeOptions = modeParam?.enum || []
+  const modeAllowlist = MODE_ALLOWLIST[model]
+  const modeOptions = modeAllowlist ? (modeParam?.enum || []).filter((m) => modeAllowlist.includes(m)) : modeParam?.enum || []
   const shotOrder = MODEL_SHOT_ORDER[model] || SHOT_ORDER
 
   useEffect(() => {
@@ -164,6 +271,8 @@ export default function BatchUpload({ onSwitchToDashboard }) {
     setScanError('')
     setScanResult(null)
     setCommitResult(null)
+    setImageOverrides({})
+    setCorrectedShots({})
     try {
       const result = await api.previewDriveScan({
         folder_path: folderPath,
@@ -182,7 +291,17 @@ export default function BatchUpload({ onSwitchToDashboard }) {
       } catch {
         // If the job list fails to load, fall back to selecting everything.
       }
-      setSelectedFolders(new Set(result.groups.filter((g) => !alreadyDone.has(g.variant_number)).map((g) => g.folder)))
+      // Only auto-select groups matching the currently chosen template --
+      // otherwise a new product from the OTHER garment type gets silently
+      // selected too (invisible in the list, but still counted in "N Job(s)
+      // anlegen" and still included when the batch is committed).
+      setSelectedFolders(
+        new Set(
+          result.groups
+            .filter((g) => g.template_key === defaultTemplateKey && !alreadyDone.has(g.variant_number))
+            .map((g) => g.folder)
+        )
+      )
     } catch (err) {
       setScanError(err.message)
     } finally {
@@ -210,6 +329,7 @@ export default function BatchUpload({ onSwitchToDashboard }) {
         mode: modeParam && mode ? mode : null,
         dry_run: dryRun,
         include_folders: Array.from(selectedFolders),
+        image_overrides: imageOverrides,
       })
       setCommitResult(result)
     } catch (err) {
@@ -222,11 +342,10 @@ export default function BatchUpload({ onSwitchToDashboard }) {
   return (
     <div className="view-body" style={{ display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: 640, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <PageHeader title="Batch-Upload" description="Google-Drive-Ordner scannen, erkannte Produkte prüfen und Jobs anlegen." />
+
         <div className="card">
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)', marginBottom: 10 }}>
-            Quelle
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Google-Drive-Ordner scannen</div>
+          <CardHeader icon={<IconFolder size={16} />} title="Ordner scannen" />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="field">
@@ -240,6 +359,9 @@ export default function BatchUpload({ onSwitchToDashboard }) {
                   value={folderPath}
                   onChange={(e) => setFolderPath(e.target.value)}
                 />
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginTop: 6, padding: '6px 10px', background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', borderRadius: 6 }}>
+                ℹ️ Hinweise zur Bild-Ablage und Modellwahl findest du auf der Info-Seite.
               </div>
             </div>
 
@@ -340,29 +462,33 @@ export default function BatchUpload({ onSwitchToDashboard }) {
 
         {scanResult && (
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Erkannte Produkte</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <button
-                  className="btn-link"
-                  onClick={() =>
-                    setSelectedFolders((prev) =>
-                      prev.size === visibleGroups.length ? new Set() : new Set(visibleGroups.map((g) => g.folder))
-                    )
-                  }
-                >
-                  {selectedFolders.size === visibleGroups.length ? 'Alle abwählen' : 'Alle auswählen'}
-                </button>
-                <button className="btn-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleScan}>
-                  <IconRefresh />
-                  Erneut scannen
-                </button>
-              </div>
-            </div>
+            <CardHeader
+              icon={<IconCheck size={16} color="var(--accent)" />}
+              title="Erkannte Produkte"
+              action={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <button
+                    className="btn-link"
+                    onClick={() =>
+                      setSelectedFolders((prev) =>
+                        prev.size === visibleGroups.length ? new Set() : new Set(visibleGroups.map((g) => g.folder))
+                      )
+                    }
+                  >
+                    {selectedFolders.size === visibleGroups.length ? 'Alle abwählen' : 'Alle auswählen'}
+                  </button>
+                  <button className="btn-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleScan}>
+                    <IconRefresh />
+                    Erneut scannen
+                  </button>
+                </div>
+              }
+            />
 
             <div style={{ border: '1px solid var(--border-light)', borderRadius: 6, overflow: 'hidden', marginBottom: 12, maxHeight: 440, overflowY: 'auto' }}>
               {visibleGroups.map((g) => {
                 const selected = selectedFolders.has(g.folder)
+                const uncertainShots = groupUncertainShots(g)
                 return (
                   <div
                     key={`${g.folder}-${g.variant_number}`}
@@ -384,14 +510,39 @@ export default function BatchUpload({ onSwitchToDashboard }) {
                     >
                       <input type="checkbox" checked={selected} onChange={() => toggleFolder(g.folder)} />
                       {g.complete ? <IconCheck /> : <IconAlertTriangle />}
-                      <span style={{ flex: 1, fontWeight: 600 }}>{g.variant_number}</span>
+                      <span style={{ fontWeight: 600 }}>{g.variant_number}</span>
+                      {uncertainShots.length > 0 && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: '#b45309',
+                            background: 'var(--amber-bg)',
+                            border: '1px solid #fde68a',
+                            borderRadius: 999,
+                            padding: '2px 8px',
+                          }}
+                          title="Per Reihenfolge zugeordnet -- bitte in der Vorschau unten prüfen"
+                        >
+                          ⚠️ unsicher: {uncertainShots.join(', ')}
+                        </span>
+                      )}
+                      <span style={{ flex: 1 }} />
                       <span style={{ color: 'var(--text-faint)' }}>{g.template_key || 'kein Template'}</span>
                       <span style={{ color: g.complete ? 'var(--text-faint)' : 'var(--amber-text)' }}>
                         {g.image_count} Bild{g.image_count === 1 ? '' : 'er'}
                         {!g.complete && ' · unvollständig'}
                       </span>
                     </label>
-                    <ThumbnailStrip images={g.images} shotOrder={shotOrder} />
+                    <ThumbnailStrip
+                      images={groupImages(g)}
+                      shotOrder={shotOrder}
+                      uncertainShots={uncertainShots}
+                      onSwap={(shotA, shotB) => handleSwap(g.folder, shotA, shotB)}
+                    />
                   </div>
                 )
               })}
@@ -413,6 +564,15 @@ export default function BatchUpload({ onSwitchToDashboard }) {
                     ·{' '}
                     <span style={{ color: 'var(--amber-text)', fontWeight: 600 }}>
                       {visibleGroups.filter((g) => !g.complete).length} unvollständig
+                    </span>
+                  </>
+                )}
+                {visibleGroups.some((g) => groupUncertainShots(g).length > 0) && (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <span style={{ color: '#b45309', fontWeight: 600 }}>
+                      ⚠️ unsichere Zuordnung: {visibleGroups.filter((g) => groupUncertainShots(g).length > 0).map((g) => g.variant_number).join(', ')}
                     </span>
                   </>
                 )}
@@ -458,10 +618,10 @@ export default function BatchUpload({ onSwitchToDashboard }) {
 
         {commitResult && (
           <div className="card">
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-              {commitResult.created.length} Job(s) angelegt
-              {commitResult.errors.length > 0 && `, ${commitResult.errors.length} Fehler`}
-            </div>
+            <CardHeader
+              icon={<IconCheck size={16} color="var(--green-text)" />}
+              title={`${commitResult.created.length} Job(s) angelegt${commitResult.errors.length > 0 ? `, ${commitResult.errors.length} Fehler` : ''}`}
+            />
             {commitResult.errors.length > 0 && (
               <div style={{ fontSize: 12, color: 'var(--red-text)', marginBottom: 10 }}>
                 {commitResult.errors.map((e) => (

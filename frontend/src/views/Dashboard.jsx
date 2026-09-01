@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '../api'
+import PageHeader from '../components/PageHeader'
+import CardHeader from '../components/CardHeader'
 import StatusBadge from '../components/StatusBadge'
 import { IconPlay, IconRefresh } from '../components/Icons'
 
@@ -44,6 +46,26 @@ function VideoPreview({ job }) {
       )}
     </div>
   )
+}
+
+function resolutionInfo(job) {
+  // job.resolution is the resolution actually requested at generation time
+  // (e.g. "360p", "720p", "1080p", "4k"). Every clip gets force-upscaled to a
+  // 1080p short side before QA passes it (see backend qa.upscale_to_1080p), so
+  // parsing pixel dimensions out of qa_status would always read "1080x1920"
+  // even for a 360p source -- misleadingly hiding the real generation quality.
+  if (job.resolution) {
+    const label = job.resolution
+    const m = label.match(/^(\d+)p$/i)
+    const shortSide = m ? parseInt(m[1], 10) : label.toLowerCase() === '4k' ? 2160 : null
+    return { label, shortSide }
+  }
+  // Models without a resolution parameter (e.g. Kling) have no requested value
+  // to fall back on -- use the actually delivered pixel dimensions instead.
+  const match = (job.qa_status || '').match(/(\d+)x(\d+)/g)
+  if (!match) return null
+  const [w, h] = match[match.length - 1].split('x').map(Number)
+  return { label: `${w}×${h}`, shortSide: Math.min(w, h) }
 }
 
 function timeAgo(iso) {
@@ -95,41 +117,51 @@ export default function Dashboard() {
 
   return (
     <div className="view-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', gap: 12 }}>
-        <select className="select" style={{ width: 180 }} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Alle Status</option>
-          {STATUS_OPTIONS.filter(Boolean).map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select className="select" style={{ width: 180 }} value={model} onChange={(e) => setModel(e.target.value)}>
-          <option value="">Alle Modelle</option>
-          {models
-            .filter((m) => !m.error)
-            .map((m) => (
-              <option key={m.model} value={m.model}>
-                {m.schema?.display_name || m.model}
-              </option>
-            ))}
-        </select>
-        <input
-          className="text-input"
-          style={{ maxWidth: 280 }}
-          placeholder="Produkt-ID suchen…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <PageHeader wide title="Dashboard" description="Alle Jobs im Überblick." />
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '18px 20px 16px', borderBottom: '1px solid var(--border-light)' }}>
+          <CardHeader
+            icon={<IconPlay size={12} color="var(--accent)" />}
+            title="Jobs"
+            action={
+              <div style={{ display: 'flex', gap: 10 }}>
+                <select className="select" style={{ width: 160 }} value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="">Alle Status</option>
+                  {STATUS_OPTIONS.filter(Boolean).map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <select className="select" style={{ width: 160 }} value={model} onChange={(e) => setModel(e.target.value)}>
+                  <option value="">Alle Modelle</option>
+                  {models
+                    .filter((m) => !m.error)
+                    .map((m) => (
+                      <option key={m.model} value={m.model}>
+                        {m.schema?.display_name || m.model}
+                      </option>
+                    ))}
+                </select>
+                <input
+                  className="text-input"
+                  style={{ width: 200 }}
+                  placeholder="Produkt-ID suchen…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            }
+          />
+        </div>
         <table>
           <thead>
             <tr>
               <th>Vorschau</th>
               <th>Status</th>
               <th>Modell</th>
+              <th>Auflösung</th>
               <th>Template</th>
               <th>Credits</th>
               <th>Erstellt</th>
@@ -146,6 +178,22 @@ export default function Dashboard() {
                   <StatusBadge status={job.status} />
                 </td>
                 <td>{job.model}</td>
+                <td>
+                  {(() => {
+                    const res = resolutionInfo(job)
+                    if (!res) return <span style={{ color: 'var(--text-faint)' }}>—</span>
+                    const belowTarget = res.shortSide !== null && res.shortSide < 1080
+                    return (
+                      <span
+                        style={{ color: belowTarget ? '#b45309' : 'var(--text-muted)', fontWeight: belowTarget ? 600 : 400 }}
+                        title={belowTarget ? 'Unter dem 1080p-Ziel' : undefined}
+                      >
+                        {res.label}
+                        {belowTarget && ' ⚠️'}
+                      </span>
+                    )
+                  })()}
+                </td>
                 <td>{job.template_key || '—'}</td>
                 <td>{job.credits_estimate ?? '–'}</td>
                 <td>{timeAgo(job.created_at)}</td>
@@ -167,7 +215,7 @@ export default function Dashboard() {
             ))}
             {visibleJobs.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 24 }}>
+                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 24 }}>
                   Keine Jobs gefunden.
                 </td>
               </tr>

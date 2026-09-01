@@ -147,10 +147,20 @@ async def _build_flags(
     if resolution and "resolution" in param_names:
         flags += ["--resolution", _valid_or_default(resolution, "resolution")]
     if "mode" in param_names:
-        # Explicit quality/speed tier for all models that expose it (rather than
-        # relying on the schema's own default). Defaults to "std" per team
-        # decision, but can be overridden (e.g. Kling's "4k" mode) per job.
-        flags += ["--mode", _valid_or_default(mode or "std", "mode")]
+        if model == "gemini_omni_flash_1_1":
+            # Unlike Kling, this model's `mode` selects the generation workflow
+            # (text-to-video/image-to-video/reference-to-video/edit), not a
+            # quality tier. reference-to-video matches our actual pipeline, but
+            # it REQUIRES at least one image -- the UI's cost-estimate call has
+            # no reference images yet (nothing scanned/selected at that point),
+            # so fall back to text-to-video for that case. Same price either
+            # way (verified live: 30 credits for both @ 10s/9:16/720p).
+            flags += ["--mode", "reference-to-video" if reference_paths else "text-to-video"]
+        else:
+            # Explicit quality/speed tier for models that expose it (Kling).
+            # Defaults to "std" per team decision, but can be overridden (e.g.
+            # Kling's "4k" mode) per job.
+            flags += ["--mode", _valid_or_default(mode or "std", "mode")]
     if "sound" in param_names:
         # Zalando PDP videos must be silent, and the audio track was being
         # stripped again after download anyway (see qa.strip_audio). Generating

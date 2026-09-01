@@ -13,10 +13,19 @@ Shot types (team's own naming, matches their existing photography workflow):
   fullback    - full body, back view
   detail_one  - product detail close-up (team shoots detail_one/detail_two but only
                 detail_one is ever used here)
+
+Images don't strictly need these names -- anything not recognized by filename
+is classified by Gemini vision instead (see image_classify.py), so the team
+can drop in images without renaming them. If that's unavailable (no API key,
+request failed), falls back to upload-order (oldest file first) into whichever
+shot types are still missing -- silent and only correct if the images were
+actually added in the full -> front -> fullback -> detail_one sequence.
 """
 
 from pathlib import Path
 from typing import Optional
+
+from . import image_classify
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
@@ -86,12 +95,14 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
         raise ValueError(f"'{root}' is not a directory")
 
     groups: dict[str, dict] = {}  # folder -> group
+    unmatched: list[Path] = []
 
     for file_path in root_path.rglob("*"):
         if not file_path.is_file() or file_path.suffix.lower() not in IMAGE_EXTENSIONS:
             continue
         shot_type = _match_shot_type(file_path.stem)
         if shot_type is None:
+            unmatched.append(file_path)
             continue
 
         detected_template = _detect_template_from_ancestors(file_path, root_path)
@@ -104,9 +115,63 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
                 "template_key": detected_template,
                 "folder": folder_key,
                 "images": {},
+                "uncertain_shots": [],
             },
         )
         group["images"][shot_type] = str(file_path)
+
+    # Second pass: any image whose filename didn't match a known shot type/alias
+    # gets classified by Gemini vision instead (content-based, order-independent).
+    # Anything vision can't place (no API key, request failed, or genuinely
+    # "unknown") falls through to upload-order assignment as a last resort --
+    # oldest-first, into whichever shot types are still missing, in the fixed
+    # full -> front -> fullback -> detail_one sequence (only correct if the
+    # images were actually added in that order; see the Batch-Upload UI hint).
+    def _add_to_group(file_path: Path, shot_type: str, uncertain: bool = False) -> None:
+        folder_key = str(file_path.parent)
+        detected_template = _detect_template_from_ancestors(file_path, root_path)
+        group = groups.setdefault(
+            folder_key,
+            {
+                "variant_number": file_path.parent.name,
+                "template_key": detected_template,
+                "folder": folder_key,
+                "images": {},
+                "uncertain_shots": [],
+            },
+        )
+        group.setdefault("uncertain_shots", [])
+        group["images"][shot_type] = str(file_path)
+        if uncertain and shot_type not in group["uncertain_shots"]:
+            group["uncertain_shots"].append(shot_type)
+        elif not uncertain and shot_type in group["uncertain_shots"]:
+            group["uncertain_shots"].remove(shot_type)
+
+    still_unmatched: list[Path] = []
+    for file_path in unmatched:
+        folder_key = str(file_path.parent)
+        group = groups.get(folder_key)
+        existing_shots = set(group["images"]) if group else set()
+        if existing_shots == set(SHOT_TYPES):
+            continue  # folder already complete, nothing left to fill
+
+        shot_type = image_classify.classify_shot_type(file_path)
+        if shot_type is None or shot_type in existing_shots:
+            still_unmatched.append(file_path)
+            continue
+        _add_to_group(file_path, shot_type)
+
+    unmatched_by_folder: dict[str, list[Path]] = {}
+    for file_path in still_unmatched:
+        unmatched_by_folder.setdefault(str(file_path.parent), []).append(file_path)
+
+    for folder_key, files in unmatched_by_folder.items():
+        files.sort(key=lambda p: p.stat().st_mtime)
+        group = groups.get(folder_key)
+        existing_shots = set(group["images"]) if group else set()
+        missing_shots = [s for s in SHOT_ORDER if s not in existing_shots]
+        for file_path, shot_type in zip(files, missing_shots):
+            _add_to_group(file_path, shot_type, uncertain=True)
 
     required_shots = TWO_IMAGE_MODEL_SHOT_ORDER.get(model, SHOT_ORDER)
 
@@ -121,6 +186,12 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
                 "image_count": len(images),
                 "complete": all(shot in images for shot in required_shots),
                 "images": images,
+                # Shot types assigned by upload-order fallback rather than
+                # filename or vision recognition -- the one case where the
+                # assignment isn't actually content-verified, so the UI can
+                # flag these for a quick manual check instead of making the
+                # team look through every single thumbnail.
+                "uncertain_shots": group.get("uncertain_shots", []),
             }
         )
     results.sort(key=lambda g: g["variant_number"])

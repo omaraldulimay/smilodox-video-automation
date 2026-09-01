@@ -5,6 +5,7 @@ import { api } from './api'
 import Header from './components/Header'
 import Dashboard from './views/Dashboard'
 import BatchUpload from './views/BatchUpload'
+import Info from './views/Info'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('batch-upload')
@@ -25,6 +26,7 @@ export default function App() {
       <Header activeTab={activeTab} onTabChange={setActiveTab} stats={stats} />
       {activeTab === 'dashboard' && <Dashboard />}
       {activeTab === 'batch-upload' && <BatchUpload onSwitchToDashboard={() => setActiveTab('dashboard')} />}
+      {activeTab === 'info' && <Info />}
     </div>
   )
 }

@@ -1,6 +1,13 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Loads .env (GEMINI_API_KEY etc.) into the process environment -- config.py is
+# imported before anything else that reads env vars, so this must run first.
+# .env itself is gitignored; each machine running the backend needs its own.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 # Team-visible folder: reference images in, finished videos out. Set via the
 # DATA_ROOT env var to the team's Google Drive Desktop folder so everyone sees
 # the same files.
@@ -49,4 +56,4 @@ QA_DURATION_TOLERANCE_SECONDS = float(os.environ.get("QA_DURATION_TOLERANCE_SECO
 DEFAULT_ASPECT_RATIO = "9:16"
 DEFAULT_RESOLUTION = "1080p"
 
-SUPPORTED_MODELS = ["kling3_0", "gemini_omni"]
+SUPPORTED_MODELS = ["kling3_0", "gemini_omni", "gemini_omni_flash_1_1"]

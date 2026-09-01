@@ -63,6 +63,15 @@ export function IconPlay({ size = 14, color = '#a1a1aa' }) {
   )
 }
 
+export function IconFilm({ size = 20, color = '#4338ca' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...base}>
+      <rect x="2" y="3" width="20" height="18" rx="2" />
+      <path d="M7 3v18M17 3v18M2 8h5M2 16h5M17 8h5M17 16h5" />
+    </svg>
+  )
+}
+
 export function IconX({ size = 14, color = '#dc2626' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...base}>

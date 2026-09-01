@@ -278,6 +278,7 @@ class DriveScanCommitIn(BaseModel):
     mode: Optional[str] = None
     dry_run: bool = False
     include_folders: Optional[list[str]] = None
+    image_overrides: Optional[dict[str, dict[str, str]]] = None
 
 
 @app.post("/jobs/batch/drive-scan/commit")
@@ -286,6 +287,11 @@ async def commit_drive_scan(body: DriveScanCommitIn):
 
     If `include_folders` is given, only groups whose folder is in that list are
     committed -- lets the UI let people deselect products they already generated.
+
+    `image_overrides` lets the UI correct a wrong shot-type assignment (e.g. the
+    scan/vision classification swapped "front" and "detail_one") without renaming
+    files on disk: {folder_path: {shot_type: file_path}}, merged on top of the
+    freshly re-scanned images for that folder.
     """
     try:
         groups = drive_scan.scan_folder(body.folder_path, model=body.model)
@@ -295,6 +301,12 @@ async def commit_drive_scan(body: DriveScanCommitIn):
     if body.include_folders is not None:
         include_set = set(body.include_folders)
         groups = [g for g in groups if g["folder"] in include_set]
+
+    if body.image_overrides:
+        for g in groups:
+            override = body.image_overrides.get(g["folder"])
+            if override:
+                g["images"] = {**g["images"], **override}
 
     created, errors = [], []
     for g in groups:

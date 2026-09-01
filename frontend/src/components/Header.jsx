@@ -3,6 +3,7 @@ import { IconCoin } from './Icons'
 const TABS = [
   { id: 'batch-upload', label: 'Batch-Upload' },
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'info', label: 'Info' },
 ]
 
 export default function Header({ activeTab, onTabChange, stats }) {
@@ -18,7 +19,10 @@ export default function Header({ activeTab, onTabChange, stats }) {
   return (
     <div className="header">
       <div className="header-left">
-        <div className="header-title">Smilodox Video Automation</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="brand-mark">S</div>
+          <div className="header-title">Smilodox Video Automation</div>
+        </div>
         <div className="tabs">
           {TABS.map((tab) => (
             <button

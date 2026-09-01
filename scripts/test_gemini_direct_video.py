@@ -21,7 +21,9 @@ we can adapt if reality differs from the docs -- it already has, twice, today.
 import base64
 import json
 import os
+import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -60,12 +62,40 @@ for p in REF_IMAGES:
 
 prompt_text = templates.resolve_prompt_text("oberteil", "gemini_omni")
 
-print(f"Loading {len(REF_IMAGES)} reference images from:\n  {REF_DIR}\n")
+
+def _compressed_jpeg_bytes(src: Path, max_long_side: int = 2048, quality: int = 90) -> bytes:
+    """Downscale + re-encode as JPEG into a throwaway temp file, purely for this
+    request's payload -- never touches the original reference image on disk.
+    Same 2048px cap used elsewhere this session for Higgsfield uploads."""
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
+                "-vf", f"scale='min({max_long_side},iw)':'min({max_long_side},ih)':force_original_aspect_ratio=decrease:flags=lanczos",
+                "-q:v", str(round((100 - quality) / 4)),  # ffmpeg mjpeg qscale: lower is better, ~2 for quality 90
+                str(tmp_path),
+            ],
+            check=True,
+        )
+        return tmp_path.read_bytes()
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+print(f"Loading + compressing {len(REF_IMAGES)} reference images from:\n  {REF_DIR}\n")
 
 input_parts = []
+total_before, total_after = 0, 0
 for p in REF_IMAGES:
-    data = base64.b64encode(p.read_bytes()).decode("ascii")
-    input_parts.append({"type": "image", "data": data, "mime_type": "image/png"})
+    total_before += p.stat().st_size
+    jpeg_bytes = _compressed_jpeg_bytes(p)
+    total_after += len(jpeg_bytes)
+    data = base64.b64encode(jpeg_bytes).decode("ascii")
+    input_parts.append({"type": "image", "data": data, "mime_type": "image/jpeg"})
+    print(f"  {p.name}: {p.stat().st_size/1024:.0f} KB -> {len(jpeg_bytes)/1024:.0f} KB")
+print(f"  total: {total_before/1024/1024:.1f} MB -> {total_after/1024/1024:.1f} MB (raw, before base64)\n")
 input_parts.append({"type": "text", "text": prompt_text})
 
 body = {

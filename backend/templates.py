@@ -94,7 +94,7 @@ OBERTEIL_PROMPT = r"""{
  },
  "camera_and_environment": {
  "camera": "camera remains completely locked within each shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
- "background": "seamless light-grey studio backdrop",
+ "background": "seamless studio backdrop -- match the exact tone and any natural lighting falloff shown in the reference photos, never a fixed or invented color",
  "lighting": "soft, even, consistent professional studio lighting across all shots",
  "floor_shadow": "subtle natural contact shadow"
  },
@@ -242,7 +242,7 @@ UNTERTEIL_PROMPT = r"""{
  },
  "camera_and_environment": {
  "camera": "camera remains completely locked within each shot, with no zoom, pan, tilt, dolly, tracking, shake or drift; camera position, lens and framing may differ only between shots as explicitly defined",
- "background": "seamless light-grey studio backdrop",
+ "background": "seamless studio backdrop -- match the exact tone and any natural lighting falloff shown in the reference photos, never a fixed or invented color",
  "lighting": "soft, even, consistent professional studio lighting across all shots",
  "floor_shadow": "subtle natural contact shadow"
  },
@@ -374,7 +374,7 @@ KLING_OBERTEIL_PROMPT = r"""{
  },
  "camera_and_environment": {
  "camera": "camera remains completely locked for the entire 10-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
- "background": "seamless light-grey studio backdrop",
+ "background": "seamless studio backdrop -- match the exact tone and any natural lighting falloff shown in the reference photos, never a fixed or invented color",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
  },
@@ -460,7 +460,7 @@ KLING_UNTERTEIL_PROMPT = r"""{
  },
  "camera_and_environment": {
  "camera": "camera remains completely locked for the entire 10-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
- "background": "seamless light-grey studio backdrop",
+ "background": "seamless studio backdrop -- match the exact tone and any natural lighting falloff shown in the reference photos, never a fixed or invented color",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
  },
