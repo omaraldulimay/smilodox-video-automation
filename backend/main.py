@@ -1,14 +1,16 @@
+import base64
 import csv
 import io
 import json
+import secrets
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -23,6 +25,55 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+_LOGIN_FAILED_HTML = """<!doctype html>
+<html><head><meta charset="utf-8"><title>Anmeldung erforderlich</title>
+<style>
+body{font-family:-apple-system,sans-serif;background:#f7f7f6;color:#1c1c1a;
+display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.box{text-align:center;max-width:320px;padding:24px}
+h1{font-size:16px;margin:0 0 8px}
+p{font-size:13px;color:#6b6b68;line-height:1.5;margin:0 0 16px}
+button{border:none;background:#4338ca;color:#fff;border-radius:6px;padding:10px 18px;
+font-size:13px;font-weight:600;cursor:pointer}
+</style></head>
+<body><div class="box">
+<h1>Anmeldung fehlgeschlagen</h1>
+<p>Benutzername oder Passwort war falsch. Seite neu laden, um es erneut zu versuchen.</p>
+<button onclick="location.reload()">Neu laden</button>
+</div></body></html>"""
+
+
+@app.middleware("http")
+async def require_portal_login(request: Request, call_next):
+    """Gates the whole portal (API + frontend) behind one shared HTTP Basic
+    Auth login -- the browser's own native login prompt, so nobody has to
+    build/style a login page. Once entered, the browser resends the same
+    credentials automatically on every request (including <img>/<video> tags),
+    so nothing else in the app needs to change.
+    """
+    auth_header = request.headers.get("authorization", "")
+    valid = False
+    if auth_header.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(auth_header[len("Basic "):]).decode("utf-8")
+            username, _, password = decoded.partition(":")
+            valid = secrets.compare_digest(username, config.PORTAL_USERNAME) and secrets.compare_digest(
+                password, config.PORTAL_PASSWORD
+            )
+        except Exception:  # noqa: BLE001 - any malformed header just means "not authenticated"
+            valid = False
+
+    if not valid:
+        return Response(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Smilodox Portal"'},
+            content=_LOGIN_FAILED_HTML,
+            media_type="text/html",
+        )
+
+    return await call_next(request)
 
 
 def _now_iso() -> str:
@@ -267,7 +318,8 @@ async def drive_scan_image(path: str):
         raise HTTPException(400, "not a recognized image file")
     if not file_path.is_file():
         raise HTTPException(404, "file not found")
-    return FileResponse(file_path, headers={"Cache-Control": "no-store"})
+    thumb_path = await drive_scan.ensure_reference_thumbnail(file_path)
+    return FileResponse(thumb_path, headers={"Cache-Control": "no-store"})
 
 
 class DriveScanCommitIn(BaseModel):

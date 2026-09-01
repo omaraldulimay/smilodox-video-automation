@@ -162,6 +162,7 @@ export default function Dashboard() {
               <th>Status</th>
               <th>Modell</th>
               <th>Auflösung</th>
+              <th>Logo</th>
               <th>Template</th>
               <th>Credits</th>
               <th>Erstellt</th>
@@ -194,6 +195,26 @@ export default function Dashboard() {
                     )
                   })()}
                 </td>
+                <td>
+                  {(() => {
+                    if (!job.logo_check) return <span style={{ color: 'var(--text-faint)' }}>—</span>
+                    if (job.logo_check === 'pass') {
+                      return <span style={{ color: 'var(--green-text)' }}>OK</span>
+                    }
+                    if (job.logo_check.startsWith('fixed_auto')) {
+                      return (
+                        <span style={{ color: 'var(--accent)', fontWeight: 600 }} title={`Automatisch korrigiert -- ${job.logo_check}. Original liegt als Backup neben dem Video.`}>
+                          ✓ automatisch korrigiert
+                        </span>
+                      )
+                    }
+                    return (
+                      <span style={{ color: '#b45309', fontWeight: 600 }} title={job.logo_check}>
+                        ⚠️ prüfen
+                      </span>
+                    )
+                  })()}
+                </td>
                 <td>{job.template_key || '—'}</td>
                 <td>{job.credits_estimate ?? '–'}</td>
                 <td>{timeAgo(job.created_at)}</td>
@@ -215,7 +236,7 @@ export default function Dashboard() {
             ))}
             {visibleJobs.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 24 }}>
+                <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 24 }}>
                   Keine Jobs gefunden.
                 </td>
               </tr>

@@ -22,12 +22,52 @@ shot types are still missing -- silent and only correct if the images were
 actually added in the full -> front -> fullback -> detail_one sequence.
 """
 
+import asyncio
+import hashlib
 from pathlib import Path
 from typing import Optional
 
-from . import image_classify
+from . import config, image_classify
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+_THUMB_MAX_SIDE = 240
+
+
+async def ensure_reference_thumbnail(source_path: Path) -> Path:
+    """Generates (once) and returns a small cached JPEG copy of a reference
+    photo for the batch-upload scan preview, keyed by (path, mtime, size) so a
+    file the team swaps in place under the same filename is picked up
+    automatically.
+
+    These reference photos are full-resolution shoot originals (often 9-14MB
+    at 2000-4000px+) -- serving them directly for a 56x56 on-screen thumbnail
+    made several silently fail to render in the browser when many loaded at
+    once (confirmed 2026-09-01: backend logs showed a clean 200 OK for every
+    one of them, so this is a client-side decode/memory issue under
+    concurrent load, not a server error). Falls back to the original file if
+    ffmpeg is unavailable or the resize fails, so a broken thumbnail never
+    blocks the scan preview outright.
+    """
+    stat = source_path.stat()
+    digest = hashlib.sha1(f"{source_path}|{stat.st_mtime_ns}|{stat.st_size}".encode()).hexdigest()
+    thumb_path = config.REFERENCE_THUMBS_DIR / f"{digest}.jpg"
+    if thumb_path.is_file():
+        return thumb_path
+
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-y", "-i", str(source_path),
+        "-vf", f"scale='min({_THUMB_MAX_SIDE},iw)':'min({_THUMB_MAX_SIDE},ih)':force_original_aspect_ratio=decrease",
+        "-q:v", "4",
+        str(thumb_path),
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc.wait()
+    if proc.returncode != 0 or not thumb_path.is_file():
+        thumb_path.unlink(missing_ok=True)
+        return source_path
+    return thumb_path
 
 SHOT_TYPES = ["full", "front", "fullback", "detail_one"]
 

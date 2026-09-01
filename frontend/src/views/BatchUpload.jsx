@@ -170,8 +170,12 @@ export default function BatchUpload({ onSwitchToDashboard }) {
       if (ts.length) setDefaultTemplateKey(ts[0].template_key)
     })
     api.getModels().then((ms) => {
-      setModels(ms)
-      const first = ms.find((m) => !m.error)
+      // Gemini hidden for now (not deleted) -- team guidance is "Kling only"
+      // until Gemini's logo reliability improves, see Info page. Remove this
+      // filter to bring it back into the picker.
+      const visible = ms.filter((m) => !m.model.startsWith('gemini_omni'))
+      setModels(visible)
+      const first = visible.find((m) => !m.error)
       if (first) setModel(first.model)
     })
   }, [])

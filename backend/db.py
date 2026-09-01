@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS clips (
     next_retry_at TEXT,
     credits_estimate REAL,
     qa_status TEXT,
+    logo_check TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -75,6 +76,8 @@ def init_db():
         existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(clips)")}
         if "mode" not in existing_cols:
             conn.execute("ALTER TABLE clips ADD COLUMN mode TEXT")
+        if "logo_check" not in existing_cols:
+            conn.execute("ALTER TABLE clips ADD COLUMN logo_check TEXT")
 
 
 def log_event(conn, job_id: str, status: str, message: str = None):

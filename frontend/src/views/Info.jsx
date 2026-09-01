@@ -1,5 +1,5 @@
 import PageHeader from '../components/PageHeader'
-import { IconFolder, IconFilm } from '../components/Icons'
+import { IconFolder } from '../components/Icons'
 
 function IconBadge({ children, tone = 'accent' }) {
   const tones = {
@@ -42,12 +42,12 @@ export default function Info() {
   return (
     <div className="view-body" style={{ display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: 640 }}>
-        <PageHeader title="Info" description="Kurzanleitung für die Bild-Ablage und die Modellwahl im Portal." />
+        <PageHeader title="Info" description="Kurzanleitung für die Bild-Ablage im Portal." />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Section icon={<IconFolder size={16} />} title="Bilder ablegen">
             <div>Bilder in die geteilte Google-Drive-Ablage "Smilodox Video Automation" legen.</div>
-            <div>1 Ordner pro Produkt (oberteil/unterteil), 4 Bilder: Ganzkörper, Nahaufnahme, Rücken, Detail. Benennung nicht nötig.</div>
+            <div>1 Ordner pro Produkt (oberteil/unterteil), 2 Bilder: Ganzkörper vorne, Rücken (am besten Ganzkörper, sonst Nahaufnahme). Benennung nicht nötig.</div>
             <div>
               <span
                 style={{
@@ -67,22 +67,6 @@ export default function Info() {
                 !
               </span>
               = unsicher zugeordnet, kurz prüfen. Falsch zugeordnet? Bild per Drag & Drop auf den richtigen Platz ziehen.
-            </div>
-          </Section>
-
-          <Section icon={<IconFilm size={16} />} title="Modellwahl">
-            <div>Kling: günstiger. Gemini: genauer (4 statt 2 Referenzbilder), aber:</div>
-            <div
-              style={{
-                background: 'var(--amber-bg)',
-                border: '1px solid #fde68a',
-                borderRadius: 6,
-                padding: '8px 10px',
-                color: 'var(--amber-text)',
-                fontWeight: 600,
-              }}
-            >
-              ⚠️ Bei freizügiger Kleidung scheitert Gemini oft an NSFW → dann Kling nehmen.
             </div>
           </Section>
         </div>

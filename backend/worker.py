@@ -4,6 +4,7 @@ from typing import Optional
 
 from . import config, db
 from . import higgsfield_adapter as hf
+from . import logo_check
 from . import qa
 
 _shutdown = asyncio.Event()
@@ -53,13 +54,15 @@ def _mark_dry_run_completed(job_id: str, credits_estimate: float):
         db.log_event(conn, job_id, "completed_dry_run", f"{credits_estimate} credits")
 
 
-def _mark_completed(job_id: str, output_path: str, qa_detail: str):
+def _mark_completed(job_id: str, output_path: str, qa_detail: str, logo_result: Optional[str] = None):
     with db.get_conn() as conn:
         conn.execute(
-            "UPDATE clips SET status = 'completed', output_path = ?, qa_status = ?, updated_at = ? WHERE job_id = ?",
-            (output_path, qa_detail, _now_iso(), job_id),
+            "UPDATE clips SET status = 'completed', output_path = ?, qa_status = ?, logo_check = ?, updated_at = ? WHERE job_id = ?",
+            (output_path, qa_detail, logo_result, _now_iso(), job_id),
         )
         db.log_event(conn, job_id, "completed", qa_detail)
+        if logo_result and logo_result.startswith("fail"):
+            db.log_event(conn, job_id, "logo_check_failed", logo_result)
 
 
 def _mark_qa_failed(job_id: str, output_path: str, detail: str):
@@ -175,7 +178,16 @@ async def _process_job(row):
             detail = f"{detail} (warning: {dropped} reference image(s) dropped, model only supports fewer slots)"
 
         if passed:
-            _mark_completed(job_id, str(output_path), detail)
+            # Detection only (cheap, stays on for dashboard visibility) -- the
+            # ffmpeg auto-patch and the manual Resolve/Fusion follow-up were
+            # both retired (2026-09-01, see memory: ffmpeg overlay looked like
+            # a pasted sticker, Resolve workflow unused). A proper fix is
+            # deferred to the deterministic OpenCV approach; see memory.
+            logo_status = None
+            if row["model"] in logo_check.LOGO_CHECK_MODELS:
+                check = await logo_check.check_logo_fidelity(reference_paths, output_path, row["duration"])
+                logo_status = check.status if check else None
+            _mark_completed(job_id, str(output_path), detail, logo_status)
         else:
             _mark_qa_failed(job_id, str(output_path), detail)
 
