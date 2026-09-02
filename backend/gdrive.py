@@ -18,6 +18,7 @@ this exact Shared Drive on 2026-09-02).
 """
 
 import io
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -26,13 +27,14 @@ from . import config
 
 _FOLDER_MIME = "application/vnd.google-apps.folder"
 
+_thread_local = threading.local()
+
 
 @lru_cache(maxsize=1)
-def _service():
+def _credentials():
     import json
 
     from google.oauth2 import service_account
-    from googleapiclient.discovery import build
 
     scopes = ["https://www.googleapis.com/auth/drive"]
     # Prefer the raw JSON in an env var when set -- most hosts (Render etc.)
@@ -41,10 +43,24 @@ def _service():
     # used locally) when the env var isn't set, so local Mac use is unchanged.
     if config.GDRIVE_KEY_JSON:
         info = json.loads(config.GDRIVE_KEY_JSON)
-        creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
-    else:
-        creds = service_account.Credentials.from_service_account_file(str(config.GDRIVE_KEY_PATH), scopes=scopes)
-    return build("drive", "v3", credentials=creds, cache_discovery=False)
+        return service_account.Credentials.from_service_account_info(info, scopes=scopes)
+    return service_account.Credentials.from_service_account_file(str(config.GDRIVE_KEY_PATH), scopes=scopes)
+
+
+def _service():
+    # One googleapiclient Resource (and its underlying httplib2.Http/socket)
+    # PER THREAD, not shared -- walk_all_files() below calls this concurrently
+    # from a ThreadPoolExecutor, and a single shared httplib2 connection is
+    # not safe for concurrent use (confirmed 2026-09-02: sharing one via
+    # @lru_cache caused "ssl.SSLError: [SSL: WRONG_VERSION_NUMBER]" under
+    # concurrent requests). The credentials object itself is safe to share.
+    service = getattr(_thread_local, "service", None)
+    if service is None:
+        from googleapiclient.discovery import build
+
+        service = build("drive", "v3", credentials=_credentials(), cache_discovery=False)
+        _thread_local.service = service
+    return service
 
 
 @lru_cache(maxsize=1)
@@ -120,18 +136,32 @@ def find_or_create_folder(parent_id: str, name: str) -> str:
 
 def walk_all_files(root_folder_id: str) -> list[dict]:
     """Recursively lists every non-folder file under root_folder_id, each with
-    an added "_parent_path" (list of ancestor folder names/ids, root-relative)
-    so callers can reconstruct nesting without repeated API round-trips."""
+    an added "_parent_chain" (list of ancestor folder dicts, root-relative) so
+    callers can reconstruct nesting without repeated API round-trips.
+
+    Lists one tree level at a time, fetching every folder at that level
+    concurrently (thread pool -- the Drive API client is synchronous) instead
+    of one folder at a time. For our layout (root -> oberteil/unterteil ->
+    ~16 product folders) that's the difference between ~18 sequential round-
+    trips and ~3 batches of parallel ones -- confirmed as the main contributor
+    to the multi-second scan time on a hosted instance (2026-09-02).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
     results: list[dict] = []
-    stack: list[tuple[str, list[dict]]] = [(root_folder_id, [])]
-    while stack:
-        folder_id, ancestors = stack.pop()
-        for child in list_children(folder_id):
-            if child["mimeType"] == _FOLDER_MIME:
-                stack.append((child["id"], ancestors + [child]))
-            else:
-                child["_parent_chain"] = ancestors
-                results.append(child)
+    frontier: list[tuple[str, list[dict]]] = [(root_folder_id, [])]
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        while frontier:
+            futures = [(fid, ancestors, executor.submit(list_children, fid)) for fid, ancestors in frontier]
+            next_frontier: list[tuple[str, list[dict]]] = []
+            for _fid, ancestors, future in futures:
+                for child in future.result():
+                    if child["mimeType"] == _FOLDER_MIME:
+                        next_frontier.append((child["id"], ancestors + [child]))
+                    else:
+                        child["_parent_chain"] = ancestors
+                        results.append(child)
+            frontier = next_frontier
     return results
 
 

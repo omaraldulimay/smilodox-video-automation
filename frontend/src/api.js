@@ -15,9 +15,18 @@ async function request(path, options = {}) {
   return res.status === 204 ? null : res.json()
 }
 
+// Templates and models are static for the lifetime of a page load (no admin
+// UI changes them live) but were being re-fetched from scratch every time
+// Batch-Upload/Dashboard re-mounted (switching tabs unmounts the previous
+// one, see App.jsx's conditional rendering) -- on a hosted instance that
+// meant a real network round-trip (plus, for models, a Higgsfield CLI call
+// per model) on every single tab switch. Cached here per page load instead.
+let _templatesCache = null
+let _modelsCache = null
+
 export const api = {
-  getTemplates: () => request('/templates'),
-  getModels: () => request('/models'),
+  getTemplates: () => (_templatesCache ??= request('/templates')),
+  getModels: () => (_modelsCache ??= request('/models')),
   getStats: () => request('/stats'),
 
   costEstimate: (body) =>

@@ -17,7 +17,12 @@ export default function App() {
 
   useEffect(() => {
     loadStats()
-    const id = setInterval(loadStats, 5000)
+    // 60s, matching the backend's account-status cache TTL -- polling faster
+    // than that just re-requests the same cached value. This was previously
+    // 5s, which on a hosted free-tier instance (shared/limited CPU) spawned
+    // a Higgsfield CLI subprocess every 5 seconds on every page, making the
+    // whole app feel sluggish (confirmed 2026-09-02).
+    const id = setInterval(loadStats, 60000)
     return () => clearInterval(id)
   }, [loadStats])
 

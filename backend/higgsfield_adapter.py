@@ -25,6 +25,9 @@ PERMANENT_MARKERS = (
 )
 
 _model_schema_cache: dict[str, dict] = {}
+_account_status_cache: Optional[dict] = None
+_account_status_cached_at: float = 0.0
+_ACCOUNT_STATUS_TTL_SECONDS = 60
 
 
 class GenerationError(Exception):
@@ -103,10 +106,25 @@ async def list_models(models: list[str]) -> list[dict]:
 
 
 async def account_status() -> dict:
+    # Cached (60s) -- the frontend polls /stats every few seconds on every
+    # page (credits pill in the header), and each uncached call spawned a
+    # fresh higgsfield CLI subprocess. On a free-tier host's shared/limited
+    # CPU this alone was enough to make the whole app feel slow (confirmed
+    # 2026-09-02: constant subprocess spawning from polling was the actual
+    # bottleneck behind sluggish tab switches and folder scans, not those
+    # operations themselves).
+    global _account_status_cache, _account_status_cached_at
+    now = time.monotonic()
+    if _account_status_cache is not None and (now - _account_status_cached_at) < _ACCOUNT_STATUS_TTL_SECONDS:
+        return _account_status_cache
+
     code, stdout, stderr = await _run_cli(["account", "status", "--json"])
     if code != 0:
         raise GenerationError(stderr or stdout or "failed to fetch account status", transient=True)
-    return json.loads(stdout)
+    result = json.loads(stdout)
+    _account_status_cache = result
+    _account_status_cached_at = now
+    return result
 
 
 async def _build_flags(
