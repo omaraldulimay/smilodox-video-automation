@@ -48,6 +48,14 @@ def gdrive_file_id(value: str) -> str:
 
 _THUMB_MAX_SIDE = 240
 
+# file_id -> Drive's own thumbnailLink, populated by scan_drive_folder() for
+# every image file it sees. Lets ensure_reference_thumbnail_gdrive() fetch
+# Drive's small pre-generated preview instead of downloading the full-size
+# original -- see gdrive.download_thumbnail_bytes(). Process-local and
+# unbounded is fine here: one entry per image file scanned, never more than a
+# few hundred, cleared implicitly on restart.
+_thumbnail_link_cache: dict[str, str] = {}
+
 
 async def ensure_reference_thumbnail(source_path: Path) -> Path:
     """Generates (once) and returns a small cached JPEG copy of a reference
@@ -96,8 +104,17 @@ async def ensure_reference_thumbnail_gdrive(file_id: str) -> Path:
     if thumb_path.is_file():
         return thumb_path
 
+    thumbnail_link = _thumbnail_link_cache.get(file_id)
+    if thumbnail_link:
+        small = await asyncio.to_thread(gdrive.download_thumbnail_bytes, thumbnail_link)
+        if small:
+            thumb_path.write_bytes(small)
+            return thumb_path
+        # Fetch failed (expired link, permission issue, etc.) -- fall through
+        # to the full-download path below rather than leaving no preview at all.
+
     raw_path = config.REFERENCE_THUMBS_DIR / f"{digest}_src"
-    raw_path.write_bytes(gdrive.download_bytes(file_id))
+    raw_path.write_bytes(await asyncio.to_thread(gdrive.download_bytes, file_id))
     try:
         proc = await asyncio.create_subprocess_exec(
             "ffmpeg", "-y", "-i", str(raw_path),
@@ -295,6 +312,9 @@ def scan_drive_folder(root_folder_id: str, model: Optional[str] = None) -> list[
     """
     all_files = gdrive.walk_all_files(root_folder_id)
     image_files = [f for f in all_files if Path(f["name"]).suffix.lower() in IMAGE_EXTENSIONS]
+    for f in image_files:
+        if f.get("thumbnailLink"):
+            _thumbnail_link_cache[f["id"]] = f["thumbnailLink"]
 
     groups: dict[str, dict] = {}
 

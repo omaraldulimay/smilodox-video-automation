@@ -90,7 +90,7 @@ def list_children(folder_id: str) -> list[dict]:
                 driveId=drive_id,
                 supportsAllDrives=True,
                 includeItemsFromAllDrives=True,
-                fields="nextPageToken, files(id, name, mimeType, modifiedTime, size)",
+                fields="nextPageToken, files(id, name, mimeType, modifiedTime, size, thumbnailLink)",
                 pageSize=200,
                 pageToken=page_token,
             )
@@ -189,6 +189,35 @@ def download_bytes(file_id: str) -> bytes:
 def download_to_path(file_id: str, dest: Path) -> Path:
     dest.write_bytes(download_bytes(file_id))
     return dest
+
+
+def download_thumbnail_bytes(thumbnail_link: str) -> Optional[bytes]:
+    """Fetches Drive's own pre-generated small preview image (~a few KB-100KB,
+    already downsized server-side by Google) instead of the full multi-MB
+    original -- used for the batch-upload scan preview, where downloading the
+    full shoot original just to shrink it to a 56x56 thumbnail was the actual
+    bottleneck behind slow-loading previews on a hosted instance (confirmed
+    2026-09-02: scanning the folder tree itself takes ~2s, but each preview
+    image required a full-size download + ffmpeg resize).
+
+    Needs an Authorization header (the file isn't public) -- reuses the same
+    service-account credentials as the API client. Returns None on any
+    failure so the caller can fall back to the full download.
+    """
+    import requests
+
+    creds = _credentials()
+    if not creds.valid:
+        import google.auth.transport.requests
+
+        creds.refresh(google.auth.transport.requests.Request())
+    try:
+        resp = requests.get(thumbnail_link, headers={"Authorization": f"Bearer {creds.token}"}, timeout=15)
+        if resp.status_code == 200 and resp.content:
+            return resp.content
+    except requests.RequestException:
+        pass
+    return None
 
 
 def upload_file(parent_id: str, local_path: Path, name: Optional[str] = None, mime_type: Optional[str] = None) -> str:
