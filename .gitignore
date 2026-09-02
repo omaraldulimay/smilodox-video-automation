@@ -13,3 +13,4 @@ internal_data/
 
 # API keys / secrets -- never committed.
 .env
+.neon
