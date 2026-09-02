@@ -3,20 +3,25 @@ services:
     name: smilodox-video-automation
     runtime: python
     plan: free
-    # Render's build user can't write to npm's default global prefix
-    # (/usr/lib/node_modules -- root-owned), so point npm at a directory in
-    # $HOME instead. startCommand below adds its bin/ to PATH so the
-    # `higgsfield` executable is actually found at runtime.
     buildCommand: >
       pip install -r requirements.txt &&
-      npm install -g @higgsfield/cli --prefix="$HOME/.npm-global" &&
       cd frontend && npm install && npm run build
+    # The higgsfield CLI is installed here, at start time, not in buildCommand
+    # -- Render's build and runtime steps run in different environments on
+    # the native Python runtime, so a package installed during build (even to
+    # a writable $HOME prefix) isn't guaranteed to exist when the app actually
+    # starts (confirmed 2026-09-02: /stats reported "higgsfield CLI not found
+    # on PATH" despite a clean build). Installing it as the first step of
+    # startCommand guarantees it's present in the exact environment that
+    # then runs uvicorn.
+    #
     # Render's Secret Files always land at /etc/secrets/<filename> at runtime,
     # but the higgsfield CLI expects its credentials at the fixed path
-    # ~/.config/higgsfield/{credentials,config}.json -- copy them there first
+    # ~/.config/higgsfield/{credentials,config}.json -- copy them there too
     # (upload the two files as Secret Files in the Render dashboard, named
     # exactly "higgsfield-credentials.json" and "higgsfield-config.json").
     startCommand: >
+      npm install -g @higgsfield/cli --prefix="$HOME/.npm-global" &&
       export PATH="$HOME/.npm-global/bin:$PATH" &&
       mkdir -p ~/.config/higgsfield &&
       cp /etc/secrets/higgsfield-credentials.json ~/.config/higgsfield/credentials.json &&
