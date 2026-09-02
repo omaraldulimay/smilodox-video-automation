@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import csv
 import io
@@ -14,8 +15,19 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, db, worker, templates, drive_scan, qa
+from . import config, db, worker, templates, drive_scan, gdrive, qa
 from . import higgsfield_adapter as hf
+
+
+def _scan_reference_images(folder_path: str, model: Optional[str]) -> list[dict]:
+    """Branches between the local-filesystem scan and the Drive API scan based
+    on config.USE_GDRIVE_API. In Drive mode `folder_path` is ignored -- always
+    scans the Shared Drive's own "reference-images" root, since that's the
+    only folder the service account needs (or the team uses in practice)."""
+    if config.USE_GDRIVE_API:
+        root_id = gdrive.find_root_folder("reference-images")
+        return drive_scan.scan_drive_folder(root_id, model=model)
+    return drive_scan.scan_folder(folder_path, model=model)
 
 app = FastAPI(title="Smilodox Video Automation")
 
@@ -288,7 +300,7 @@ class DriveScanIn(BaseModel):
 async def preview_drive_scan(body: DriveScanIn):
     """Scans the folder and reports what would be created, without creating anything."""
     try:
-        groups = drive_scan.scan_folder(body.folder_path, model=body.model)
+        groups = await asyncio.to_thread(_scan_reference_images, body.folder_path, body.model)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -313,6 +325,10 @@ async def drive_scan_image(path: str):
     do, so browsers must never cache this response or a stale image lingers in the
     preview after a real, on-disk swap.
     """
+    if drive_scan.is_gdrive_ref(path):
+        thumb_path = await drive_scan.ensure_reference_thumbnail_gdrive(drive_scan.gdrive_file_id(path))
+        return FileResponse(thumb_path, headers={"Cache-Control": "no-store"})
+
     file_path = Path(path)
     if file_path.suffix.lower() not in drive_scan.IMAGE_EXTENSIONS:
         raise HTTPException(400, "not a recognized image file")
@@ -346,7 +362,7 @@ async def commit_drive_scan(body: DriveScanCommitIn):
     freshly re-scanned images for that folder.
     """
     try:
-        groups = drive_scan.scan_folder(body.folder_path, model=body.model)
+        groups = await asyncio.to_thread(_scan_reference_images, body.folder_path, body.model)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -434,12 +450,24 @@ async def get_job(job_id: str):
     return {"job": dict(row), "events": [dict(e) for e in events]}
 
 
-def _get_output_path(job_id: str) -> Path:
+async def _get_output_path(job_id: str) -> Path:
     with db.get_conn() as conn:
         row = conn.execute("SELECT output_path FROM clips WHERE job_id = ?", (job_id,)).fetchone()
     if row is None or not row["output_path"]:
         raise HTTPException(404, "no video for this job")
-    path = Path(row["output_path"])
+    output_path = row["output_path"]
+
+    if drive_scan.is_gdrive_ref(output_path):
+        # Purely a serving cache (config.OUTPUT_CACHE_DIR) -- Drive is the
+        # source of truth, so a missing/evicted cache file just re-downloads.
+        file_id = drive_scan.gdrive_file_id(output_path)
+        cache_path = config.OUTPUT_CACHE_DIR / f"{file_id}.mp4"
+        if not cache_path.is_file():
+            data = await asyncio.to_thread(gdrive.download_bytes, file_id)
+            cache_path.write_bytes(data)
+        return cache_path
+
+    path = Path(output_path)
     if not path.is_file():
         raise HTTPException(404, "video file not found")
     return path
@@ -448,7 +476,7 @@ def _get_output_path(job_id: str) -> Path:
 @app.get("/jobs/{job_id}/video")
 async def get_job_video(job_id: str):
     """Streams the finished video for hover-preview / playback in the dashboard."""
-    return FileResponse(_get_output_path(job_id), media_type="video/mp4")
+    return FileResponse(await _get_output_path(job_id), media_type="video/mp4")
 
 
 @app.get("/jobs/{job_id}/thumbnail")
@@ -457,7 +485,7 @@ async def get_job_thumbnail(job_id: str):
     proactively by the worker right after the job finishes (see worker.py) --
     this lazily generates it only as a fallback for videos made before that
     existed, so it never re-runs ffmpeg once cached."""
-    video_path = _get_output_path(job_id)
+    video_path = await _get_output_path(job_id)
     thumb_path = await qa.ensure_thumbnail(video_path)
     if not thumb_path.is_file():
         raise HTTPException(500, "thumbnail generation failed")

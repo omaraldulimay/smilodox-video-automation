@@ -74,10 +74,20 @@ def classify_shot_type(file_path: Path) -> Optional[str]:
     upload-order assignment in that case. Cached on disk -- a given image is
     only ever sent to the API once as long as it doesn't change.
     """
-    cache = _load_cache()
     key = _cache_key(file_path)
-    if key in cache:
-        result = cache[key]
+    mime_type = "image/png" if file_path.suffix.lower() == ".png" else "image/jpeg"
+    return classify_shot_type_bytes(key, lambda: file_path.read_bytes(), mime_type)
+
+
+def classify_shot_type_bytes(cache_key: str, data_fn, mime_type: str) -> Optional[str]:
+    """Same as classify_shot_type but for callers that don't have a local file
+    (e.g. a Drive-hosted image) -- `data_fn` is only invoked on a cache miss, so
+    a cached result never triggers a download/read at all. `cache_key` must be
+    stable across re-scans of the *same, unchanged* image and change whenever
+    its content does (e.g. "gdrive:<file_id>|<modifiedTime>")."""
+    cache = _load_cache()
+    if cache_key in cache:
+        result = cache[cache_key]
         return result if result != "unknown" else None
 
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -89,10 +99,9 @@ def classify_shot_type(file_path: Path) -> Optional[str]:
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        mime_type = "image/png" if file_path.suffix.lower() == ".png" else "image/jpeg"
         resp = client.models.generate_content(
             model=_MODEL,
-            contents=[types.Part.from_bytes(data=file_path.read_bytes(), mime_type=mime_type), _PROMPT],
+            contents=[types.Part.from_bytes(data=data_fn(), mime_type=mime_type), _PROMPT],
         )
         answer = (resp.text or "").strip().lower()
     except Exception:  # noqa: BLE001 - any failure here just means "couldn't classify"
@@ -101,6 +110,6 @@ def classify_shot_type(file_path: Path) -> Optional[str]:
     if answer not in _VALID_SHOT_TYPES:
         answer = "unknown"
 
-    cache[key] = answer
+    cache[cache_key] = answer
     _save_cache(cache)
     return answer if answer != "unknown" else None

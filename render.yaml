@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: smilodox-video-automation
+    runtime: python
+    plan: free
+    buildCommand: >
+      pip install -r requirements.txt &&
+      npm install -g @higgsfield/cli &&
+      cd frontend && npm install && npm run build
+    # Render's Secret Files always land at /etc/secrets/<filename> at runtime,
+    # but the higgsfield CLI expects its credentials at the fixed path
+    # ~/.config/higgsfield/{credentials,config}.json -- copy them there first
+    # (upload the two files as Secret Files in the Render dashboard, named
+    # exactly "higgsfield-credentials.json" and "higgsfield-config.json").
+    startCommand: >
+      mkdir -p ~/.config/higgsfield &&
+      cp /etc/secrets/higgsfield-credentials.json ~/.config/higgsfield/credentials.json &&
+      cp /etc/secrets/higgsfield-config.json ~/.config/higgsfield/config.json &&
+      python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: USE_GDRIVE_API
+        value: "true"
+      - key: GDRIVE_SHARED_DRIVE_NAME
+        value: "Smilodox Video Automation"
+      # Secrets -- set manually in the Render dashboard (Environment tab),
+      # never committed here:
+      - key: GDRIVE_KEY_JSON
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PORTAL_USERNAME
+        sync: false
+      - key: PORTAL_PASSWORD
+        sync: false

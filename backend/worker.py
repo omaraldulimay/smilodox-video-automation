@@ -1,13 +1,37 @@
 import asyncio
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Optional
 
-from . import config, db
+from . import config, db, drive_scan, gdrive
 from . import higgsfield_adapter as hf
 from . import logo_check
 from . import qa
 
 _shutdown = asyncio.Event()
+
+
+async def _resolve_reference_paths(reference_paths: list[str]) -> list[str]:
+    """Downloads any "gdrive://<id>" reference paths to local temp files so
+    higgsfield_adapter (which uploads local files by path to the Higgsfield
+    CLI) works completely unchanged; plain local paths pass through as-is.
+    Cached by file id under config.UPLOADS_DIR -- the same two reference
+    images get reused across retries of the same job without re-downloading.
+    """
+    resolved = []
+    for ref in reference_paths:
+        if not drive_scan.is_gdrive_ref(ref):
+            resolved.append(ref)
+            continue
+        file_id = drive_scan.gdrive_file_id(ref)
+        meta = await asyncio.to_thread(gdrive.get_file_metadata, file_id)
+        suffix = Path(meta.get("name", "")).suffix or ".jpg"
+        tmp_path = config.UPLOADS_DIR / f"{file_id}{suffix}"
+        if not tmp_path.is_file():
+            data = await asyncio.to_thread(gdrive.download_bytes, file_id)
+            tmp_path.write_bytes(data)
+        resolved.append(str(tmp_path))
+    return resolved
 
 
 def _now_iso() -> str:
@@ -131,6 +155,22 @@ async def _download(url: str, job_id: str, dest_dir):
     return dest
 
 
+_OUTPUT_SUBDIR_NAMES = {"oberteil": "Oberteil", "unterteil": "Unterteil"}
+
+
+async def _upload_output_to_drive(local_path: Path, template_key: Optional[str]) -> str:
+    """Uploads a finished clip into the Shared Drive's output/ folder (mirroring
+    the local OUTPUT_SUBDIRS layout: output/Oberteil, output/Unterteil), and
+    returns a "gdrive://<id>" reference for storing as the job's output_path."""
+    output_root_id = await asyncio.to_thread(gdrive.find_root_folder, "output")
+    subdir_name = _OUTPUT_SUBDIR_NAMES.get(template_key)
+    parent_id = output_root_id
+    if subdir_name:
+        parent_id = await asyncio.to_thread(gdrive.find_or_create_folder, output_root_id, subdir_name)
+    file_id = await asyncio.to_thread(gdrive.upload_file, parent_id, local_path, local_path.name, "video/mp4")
+    return f"{drive_scan.GDRIVE_PREFIX}{file_id}"
+
+
 async def _process_job(row):
     import json as _json
 
@@ -144,10 +184,11 @@ async def _process_job(row):
             _mark_dry_run_completed(job_id, credits)
             return
 
+        generation_reference_paths = await _resolve_reference_paths(reference_paths)
         job = await hf.generate(
             row["model"],
             row["prompt"],
-            reference_paths,
+            generation_reference_paths,
             row["duration"],
             row["aspect_ratio"],
             row["resolution"],
@@ -168,6 +209,19 @@ async def _process_job(row):
         # minimum resolution, at no extra Higgsfield cost. No-op for anything
         # already at/above 1080p on its short side (Kling pro/4k).
         upscaled = await qa.upscale_to_1080p(output_path, row["aspect_ratio"])
+
+        # Upload to Drive (source of truth for the team) BEFORE thumbnailing,
+        # so the local cache file already has its final name -- ensure_thumbnail
+        # keys its cache by filename stem, and _get_output_path's Drive-mode
+        # cache path uses the Drive file id as that stem, not the job id.
+        stored_output_path = str(output_path)
+        if config.USE_GDRIVE_API:
+            drive_ref = await _upload_output_to_drive(output_path, row["template_key"])
+            file_id = drive_scan.gdrive_file_id(drive_ref)
+            cache_path = config.OUTPUT_CACHE_DIR / f"{file_id}.mp4"
+            output_path = output_path.replace(cache_path)
+            stored_output_path = drive_ref
+
         await qa.ensure_thumbnail(output_path)
         probe_result = await qa.probe(str(output_path))
         passed, detail = qa.check_against_target(probe_result, row["duration"])
@@ -184,12 +238,16 @@ async def _process_job(row):
             # a pasted sticker, Resolve workflow unused). A proper fix is
             # deferred to the deterministic OpenCV approach; see memory.
             logo_status = None
-            if row["model"] in logo_check.LOGO_CHECK_MODELS:
+            if row["model"] in logo_check.LOGO_CHECK_MODELS and not config.USE_GDRIVE_API:
+                # Not yet Drive-aware (reads reference_paths as local Paths
+                # directly) -- skip rather than error; only Kling is offered
+                # in the UI right now anyway, so LOGO_CHECK_MODELS never
+                # matches in practice, see Info page / memory.
                 check = await logo_check.check_logo_fidelity(reference_paths, output_path, row["duration"])
                 logo_status = check.status if check else None
-            _mark_completed(job_id, str(output_path), detail, logo_status)
+            _mark_completed(job_id, stored_output_path, detail, logo_status)
         else:
-            _mark_qa_failed(job_id, str(output_path), detail)
+            _mark_qa_failed(job_id, stored_output_path, detail)
 
     except hf.GenerationError as exc:
         _mark_failed(job_id, exc.transient, str(exc), row["retry_count"])

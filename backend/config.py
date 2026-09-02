@@ -43,6 +43,10 @@ THUMBNAILS_DIR = INTERNAL_DIR / "thumbnails"
 # shoot originals (often 9-14MB), too large to serve directly for a 56x56
 # on-screen thumbnail without risking browser decode failures under load.
 REFERENCE_THUMBS_DIR = INTERNAL_DIR / "reference_thumbnails"
+# Local cache of videos downloaded back from Drive for serving (see main.py's
+# _get_output_path) when USE_GDRIVE_API is on -- purely a performance cache,
+# never the source of truth (that's Drive itself), safe to lose on restart.
+OUTPUT_CACHE_DIR = INTERNAL_DIR / "output_cache"
 # Currently unused by the pipeline (the per-product logo-reference-image feature
 # this was built for was reverted) -- kept in case that gets revisited later.
 BRAND_ASSETS_DIR = INTERNAL_ROOT / "brand_assets"
@@ -53,7 +57,7 @@ LOGO_FIXES_DIR = INTERNAL_ROOT / "logo_fixes"
 
 for d in (
     UPLOADS_DIR, OUTPUT_DIR, MANIFESTS_DIR, THUMBNAILS_DIR, REFERENCE_THUMBS_DIR,
-    BRAND_ASSETS_DIR, LOGO_FIXES_DIR, *OUTPUT_SUBDIRS.values(),
+    BRAND_ASSETS_DIR, LOGO_FIXES_DIR, OUTPUT_CACHE_DIR, *OUTPUT_SUBDIRS.values(),
 ):
     d.mkdir(parents=True, exist_ok=True)
 
@@ -76,3 +80,24 @@ SUPPORTED_MODELS = ["kling3_0", "gemini_omni", "gemini_omni_flash_1_1"]
 # missing, not a secure default -- change it before sharing portal access.
 PORTAL_USERNAME = os.environ.get("PORTAL_USERNAME", "smilodox")
 PORTAL_PASSWORD = os.environ.get("PORTAL_PASSWORD", "changeme")
+
+# Google Drive API (see gdrive.py) -- replaces the local Drive-Desktop-synced
+# filesystem access for hosted deployments. USE_GDRIVE_API is the single
+# switch: false (default) keeps the original local-filesystem behavior
+# unchanged for local/Mac use, true switches reference-image scanning and
+# video output to the real Drive API. Off by default so nothing here affects
+# the existing local setup until explicitly turned on.
+USE_GDRIVE_API = os.environ.get("USE_GDRIVE_API", "false").lower() == "true"
+GDRIVE_KEY_PATH = Path(
+    os.environ.get("GDRIVE_KEY_PATH", str(INTERNAL_ROOT / "gdrive-service-account.json"))
+)
+# Alternative to GDRIVE_KEY_PATH: the service-account JSON's raw content as a
+# single env var, for hosts where that's simpler than a secret file. See
+# gdrive.py -- this takes priority over GDRIVE_KEY_PATH when set.
+GDRIVE_KEY_JSON = os.environ.get("GDRIVE_KEY_JSON", "")
+GDRIVE_SHARED_DRIVE_NAME = os.environ.get("GDRIVE_SHARED_DRIVE_NAME", "Smilodox Video Automation")
+
+# Hosted Postgres instead of local SQLite -- needed for free-tier hosting
+# (local disk doesn't survive a restart there). Empty/unset keeps the
+# original local-SQLite-file behavior completely unchanged, see db.py.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")

@@ -27,9 +27,24 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
-from . import config, image_classify
+from . import config, gdrive, image_classify
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+# Marker prefix for a Drive file id standing in for what used to be a local
+# path string everywhere in this module (images dict values, reference_paths,
+# output_path). Lets every downstream consumer (image_classify, worker.py,
+# main.py's image/video endpoints) tell "Drive reference" from "local path"
+# with a plain string check instead of a second parallel type throughout.
+GDRIVE_PREFIX = "gdrive://"
+
+
+def is_gdrive_ref(value: str) -> bool:
+    return value.startswith(GDRIVE_PREFIX)
+
+
+def gdrive_file_id(value: str) -> str:
+    return value[len(GDRIVE_PREFIX):]
 
 _THUMB_MAX_SIDE = 240
 
@@ -68,6 +83,39 @@ async def ensure_reference_thumbnail(source_path: Path) -> Path:
         thumb_path.unlink(missing_ok=True)
         return source_path
     return thumb_path
+
+async def ensure_reference_thumbnail_gdrive(file_id: str) -> Path:
+    """Same as ensure_reference_thumbnail() but for a Drive-hosted image --
+    downloads it to a local temp file once, keyed by file_id, then reuses the
+    exact same ffmpeg resize step. Keyed by id only (not modifiedTime, unlike
+    the local version) to avoid an extra metadata round-trip per thumbnail
+    request -- fine in practice since replacing a reference photo in Drive
+    normally creates a new file id anyway."""
+    digest = hashlib.sha1(f"gdrive:{file_id}".encode()).hexdigest()
+    thumb_path = config.REFERENCE_THUMBS_DIR / f"{digest}.jpg"
+    if thumb_path.is_file():
+        return thumb_path
+
+    raw_path = config.REFERENCE_THUMBS_DIR / f"{digest}_src"
+    raw_path.write_bytes(gdrive.download_bytes(file_id))
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-y", "-i", str(raw_path),
+            "-vf", f"scale='min({_THUMB_MAX_SIDE},iw)':'min({_THUMB_MAX_SIDE},ih)':force_original_aspect_ratio=decrease",
+            "-q:v", "4",
+            str(thumb_path),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await proc.wait()
+        if proc.returncode != 0 or not thumb_path.is_file():
+            thumb_path.unlink(missing_ok=True)
+            return raw_path
+        return thumb_path
+    finally:
+        if thumb_path.is_file():
+            raw_path.unlink(missing_ok=True)
+
 
 SHOT_TYPES = ["full", "front", "fullback", "detail_one"]
 
@@ -231,6 +279,97 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
                 # assignment isn't actually content-verified, so the UI can
                 # flag these for a quick manual check instead of making the
                 # team look through every single thumbnail.
+                "uncertain_shots": group.get("uncertain_shots", []),
+            }
+        )
+    results.sort(key=lambda g: g["variant_number"])
+    return results
+
+
+def scan_drive_folder(root_folder_id: str, model: Optional[str] = None) -> list[dict]:
+    """Same contract as scan_folder(), but walks a Google Drive folder via the
+    API instead of the local filesystem (see gdrive.py) -- used when
+    config.USE_GDRIVE_API is on. Every image reference in the returned
+    "images" dict is a "gdrive://<file_id>" string instead of a local path;
+    "folder" is the Drive folder id instead of a filesystem path.
+    """
+    all_files = gdrive.walk_all_files(root_folder_id)
+    image_files = [f for f in all_files if Path(f["name"]).suffix.lower() in IMAGE_EXTENSIONS]
+
+    groups: dict[str, dict] = {}
+
+    def _group_for(f: dict) -> dict:
+        chain = f["_parent_chain"]
+        parent_id = chain[-1]["id"] if chain else root_folder_id
+        variant_name = chain[-1]["name"] if chain else "root"
+        detected_template = None
+        for anc in chain:
+            name = anc["name"].strip().lower()
+            if name in GARMENT_FOLDER_NAMES:
+                detected_template = GARMENT_FOLDER_NAMES[name]
+        return groups.setdefault(
+            parent_id,
+            {
+                "variant_number": variant_name,
+                "template_key": detected_template,
+                "folder": parent_id,
+                "images": {},
+                "uncertain_shots": [],
+            },
+        )
+
+    unmatched: list[dict] = []
+    for f in image_files:
+        shot_type = _match_shot_type(Path(f["name"]).stem)
+        if shot_type is None:
+            unmatched.append(f)
+            continue
+        _group_for(f)["images"][shot_type] = GDRIVE_PREFIX + f["id"]
+
+    still_unmatched: list[dict] = []
+    for f in unmatched:
+        group = _group_for(f)
+        if set(group["images"]) == set(SHOT_TYPES):
+            continue
+        cache_key = f"gdrive:{f['id']}|{f.get('modifiedTime', '')}"
+        mime_type = "image/png" if f["name"].lower().endswith(".png") else "image/jpeg"
+        file_id = f["id"]
+        shot_type = image_classify.classify_shot_type_bytes(
+            cache_key, lambda fid=file_id: gdrive.download_bytes(fid), mime_type
+        )
+        if shot_type is None or shot_type in group["images"]:
+            still_unmatched.append(f)
+            continue
+        group["images"][shot_type] = GDRIVE_PREFIX + f["id"]
+
+    unmatched_by_folder: dict[str, list[dict]] = {}
+    for f in still_unmatched:
+        chain = f["_parent_chain"]
+        parent_id = chain[-1]["id"] if chain else root_folder_id
+        unmatched_by_folder.setdefault(parent_id, []).append(f)
+
+    for parent_id, files in unmatched_by_folder.items():
+        files.sort(key=lambda f: f.get("modifiedTime", ""))
+        group = groups.get(parent_id)
+        if group is None:
+            continue
+        missing_shots = [s for s in SHOT_ORDER if s not in group["images"]]
+        for f, shot_type in zip(files, missing_shots):
+            group["images"][shot_type] = GDRIVE_PREFIX + f["id"]
+            group["uncertain_shots"].append(shot_type)
+
+    required_shots = TWO_IMAGE_MODEL_SHOT_ORDER.get(model, SHOT_ORDER)
+    results = []
+    for group in groups.values():
+        images = group["images"]
+        results.append(
+            {
+                "variant_number": group["variant_number"],
+                "template_key": group["template_key"],
+                "folder": group["folder"],
+                "image_count": len(images),
+                "complete": all(shot in images for shot in required_shots),
+                "images": images,
                 "uncertain_shots": group.get("uncertain_shots", []),
             }
         )
