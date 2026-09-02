@@ -19,10 +19,12 @@ nothing.
 
 import json
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
-from . import config
+from . import config, db
 
 CACHE_PATH = config.INTERNAL_ROOT / "shot_classification_cache.json"
 
@@ -49,6 +51,17 @@ Reply with exactly one of: full, front, fullback, detail_one, unknown"""
 
 
 def _load_cache() -> dict:
+    if db.USE_POSTGRES:
+        # Hosted: the local disk is ephemeral (wiped on restart/deploy), so the
+        # cache lives in the database instead -- otherwise every scan re-sent
+        # every unmatched image to the API. Read in one query, not per image.
+        try:
+            with db.get_conn() as conn:
+                rows = conn.execute("SELECT cache_key, shot_type FROM shot_classifications").fetchall()
+            return {row["cache_key"]: row["shot_type"] for row in rows}
+        except Exception:  # noqa: BLE001 - an unreachable cache just means "classify again"
+            return {}
+
     if not CACHE_PATH.is_file():
         return {}
     try:
@@ -60,6 +73,62 @@ def _load_cache() -> dict:
 def _save_cache(cache: dict) -> None:
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     CACHE_PATH.write_text(json.dumps(cache, indent=2))
+
+
+def _store_results(entries: dict) -> None:
+    """Persists newly classified results -- one batched write, not one per image."""
+    if not entries:
+        return
+
+    if db.USE_POSTGRES:
+        from datetime import datetime, timezone
+
+        now_iso = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        try:
+            with db.get_conn() as conn:
+                for key, shot_type in entries.items():
+                    conn.execute(
+                        "INSERT INTO shot_classifications (cache_key, shot_type, created_at) VALUES (?, ?, ?) "
+                        "ON CONFLICT (cache_key) DO UPDATE SET shot_type = excluded.shot_type",
+                        (key, shot_type, now_iso),
+                    )
+        except Exception:  # noqa: BLE001 - failing to cache must not fail the scan
+            pass
+        return
+
+    cache = _load_cache()
+    cache.update(entries)
+    _save_cache(cache)
+
+
+def _classify_one(api_key: str, data_fn, mime_type: str) -> Optional[str]:
+    """Single API call. Returns a valid shot type, "unknown", or None when the
+    call itself failed -- None is deliberately NOT cached, so a transient
+    failure (rate limit, network) doesn't permanently poison the result.
+    Retries once, since a rate-limited image would otherwise silently fall
+    through to upload-order assignment, which can assign the wrong shot type.
+    """
+    from google import genai
+    from google.genai import types
+
+    try:
+        data = data_fn()
+    except Exception:  # noqa: BLE001 - couldn't even fetch the image
+        return None
+
+    for attempt in range(2):
+        try:
+            client = genai.Client(api_key=api_key)
+            resp = client.models.generate_content(
+                model=_MODEL,
+                contents=[types.Part.from_bytes(data=data, mime_type=mime_type), _PROMPT],
+            )
+            answer = (resp.text or "").strip().lower()
+            return answer if answer in _VALID_SHOT_TYPES else "unknown"
+        except Exception:  # noqa: BLE001
+            if attempt == 0:
+                time.sleep(2)
+    return None
 
 
 def _cache_key(file_path: Path) -> str:
@@ -85,31 +154,61 @@ def classify_shot_type_bytes(cache_key: str, data_fn, mime_type: str) -> Optiona
     a cached result never triggers a download/read at all. `cache_key` must be
     stable across re-scans of the *same, unchanged* image and change whenever
     its content does (e.g. "gdrive:<file_id>|<modifiedTime>")."""
+    return classify_shot_types_batch([(cache_key, data_fn, mime_type)]).get(cache_key)
+
+
+def classify_shot_types_batch(items: list) -> dict:
+    """Classifies many images at once, returning {cache_key: shot_type or None}.
+
+    `items` is a list of (cache_key, data_fn, mime_type) tuples, same meaning
+    as in classify_shot_type_bytes.
+
+    Exists because classifying one image at a time was the dominant cost of a
+    folder scan: each miss is a full image download plus an API round-trip
+    (~1-2s), and doing 19 of them sequentially accounted for essentially all
+    of the ~30s scan time seen on the hosted instance (2026-09-02). Cache
+    misses are now fetched and classified concurrently, the cache is read once
+    up front, and all new results are written back in a single batch (the
+    per-image read-modify-write of the old cache file would also have raced
+    against itself once parallelized).
+    """
     cache = _load_cache()
-    if cache_key in cache:
-        result = cache[cache_key]
-        return result if result != "unknown" else None
+    results: dict = {}
+    misses = []
+    for cache_key, data_fn, mime_type in items:
+        if cache_key in cache:
+            cached = cache[cache_key]
+            results[cache_key] = cached if cached != "unknown" else None
+        else:
+            misses.append((cache_key, data_fn, mime_type))
+
+    if not misses:
+        return results
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        return None
+        for cache_key, _, _ in misses:
+            results[cache_key] = None
+        return results
 
-    try:
-        from google import genai
-        from google.genai import types
+    # Capped well below the API's rate limit -- a rate-limited image returns
+    # None and falls through to upload-order assignment, which can be silently
+    # wrong, so throughput here is deliberately not maximized.
+    max_workers = min(4, len(misses))
+    new_entries: dict = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_classify_one, api_key, data_fn, mime_type): cache_key
+            for cache_key, data_fn, mime_type in misses
+        }
+        for future in as_completed(futures):
+            cache_key = futures[future]
+            answer = future.result()
+            if answer is None:  # call failed -- don't cache, retry next scan
+                results[cache_key] = None
+                continue
+            new_entries[cache_key] = answer
+            results[cache_key] = answer if answer != "unknown" else None
 
-        client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=_MODEL,
-            contents=[types.Part.from_bytes(data=data_fn(), mime_type=mime_type), _PROMPT],
-        )
-        answer = (resp.text or "").strip().lower()
-    except Exception:  # noqa: BLE001 - any failure here just means "couldn't classify"
-        return None
-
-    if answer not in _VALID_SHOT_TYPES:
-        answer = "unknown"
-
-    cache[cache_key] = answer
-    _save_cache(cache)
-    return answer if answer != "unknown" else None
+    _store_results(new_entries)
+    return results

@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
 CREATE INDEX IF NOT EXISTS idx_clips_status ON clips(status);
 """
 
+# NOTE: the shot-classification cache (image_classify.py) is deliberately NOT
+# in the SQLite schema -- locally it stays a plain JSON file, unchanged. It
+# only needs a table in Postgres, where it exists specifically to survive a
+# hosted instance's ephemeral disk being wiped on restart/deploy.
+
 # Same schema, Postgres dialect: SERIAL instead of AUTOINCREMENT, INTEGER
 # stays INTEGER (dry_run is stored 0/1 same as SQLite, not BOOLEAN, so no
 # call-site changes needed anywhere that reads/writes it).
@@ -105,6 +110,18 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
     shot_count INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+
+-- Vision shot-type classifications (see image_classify.py). Postgres-only:
+-- on a hosted instance the local disk is wiped on every restart/deploy, so a
+-- JSON-file cache there meant re-classifying every unmatched reference image
+-- through the Gemini API on every single folder scan -- the actual reason
+-- scanning stayed slow after the other fixes (confirmed 2026-09-02: 19 of 63
+-- images needed vision, each a full download + API call).
+CREATE TABLE IF NOT EXISTS shot_classifications (
+    cache_key TEXT PRIMARY KEY,
+    shot_type TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_clips_status ON clips(status);

@@ -252,15 +252,22 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
         elif not uncertain and shot_type in group["uncertain_shots"]:
             group["uncertain_shots"].remove(shot_type)
 
-    still_unmatched: list[Path] = []
-    for file_path in unmatched:
+    def _candidate_shots(file_path: Path) -> set:
         folder_key = str(file_path.parent)
         group = groups.get(folder_key)
-        existing_shots = set(group["images"]) if group else set()
-        if existing_shots == set(SHOT_TYPES):
-            continue  # folder already complete, nothing left to fill
+        return set(group["images"]) if group else set()
 
-        shot_type = image_classify.classify_shot_type(file_path)
+    candidates = [fp for fp in unmatched if _candidate_shots(fp) != set(SHOT_TYPES)]
+    classify_items = [
+        (image_classify._cache_key(fp), (lambda p=fp: p.read_bytes()), "image/png" if fp.suffix.lower() == ".png" else "image/jpeg")
+        for fp in candidates
+    ]
+    classified = image_classify.classify_shot_types_batch(classify_items)
+
+    still_unmatched: list[Path] = []
+    for file_path in candidates:
+        existing_shots = _candidate_shots(file_path)
+        shot_type = classified.get(image_classify._cache_key(file_path))
         if shot_type is None or shot_type in existing_shots:
             still_unmatched.append(file_path)
             continue
@@ -346,17 +353,26 @@ def scan_drive_folder(root_folder_id: str, model: Optional[str] = None) -> list[
             continue
         _group_for(f)["images"][shot_type] = GDRIVE_PREFIX + f["id"]
 
-    still_unmatched: list[dict] = []
-    for f in unmatched:
-        group = _group_for(f)
-        if set(group["images"]) == set(SHOT_TYPES):
-            continue
-        cache_key = f"gdrive:{f['id']}|{f.get('modifiedTime', '')}"
-        mime_type = "image/png" if f["name"].lower().endswith(".png") else "image/jpeg"
-        file_id = f["id"]
-        shot_type = image_classify.classify_shot_type_bytes(
-            cache_key, lambda fid=file_id: gdrive.download_bytes(fid), mime_type
+    # Classified as one batch (concurrent downloads + API calls, one cache
+    # read/write) rather than one image at a time -- sequential classification
+    # of ~19 images was the dominant cost of a folder scan on the hosted
+    # instance, ~1-2s each (confirmed 2026-09-02).
+    candidates = [f for f in unmatched if set(_group_for(f)["images"]) != set(SHOT_TYPES)]
+    classify_items = [
+        (
+            f"gdrive:{f['id']}|{f.get('modifiedTime', '')}",
+            (lambda fid=f["id"]: gdrive.download_bytes(fid)),
+            "image/png" if f["name"].lower().endswith(".png") else "image/jpeg",
         )
+        for f in candidates
+    ]
+    classified = image_classify.classify_shot_types_batch(classify_items)
+
+    still_unmatched: list[dict] = []
+    for f in candidates:
+        group = _group_for(f)
+        cache_key = f"gdrive:{f['id']}|{f.get('modifiedTime', '')}"
+        shot_type = classified.get(cache_key)
         if shot_type is None or shot_type in group["images"]:
             still_unmatched.append(f)
             continue
