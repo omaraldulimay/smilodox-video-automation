@@ -78,7 +78,7 @@ function timeAgo(iso) {
   return `vor ${Math.round(hours / 24)} Tagen`
 }
 
-export default function Dashboard() {
+export default function Dashboard({ active = true }) {
   const [jobs, setJobs] = useState([])
   const [status, setStatus] = useState('')
   const [model, setModel] = useState('')
@@ -95,10 +95,16 @@ export default function Dashboard() {
   }, [status, model])
 
   useEffect(() => {
+    // The Dashboard now stays mounted when the user switches tabs (see
+    // App.jsx) so its state and job list survive -- but it must stop polling
+    // while hidden, otherwise a background tab keeps hitting /jobs every 5s.
+    // Re-runs (and so reloads immediately) the moment it becomes visible
+    // again, so the list is never stale on return.
+    if (!active) return
     load()
     const id = setInterval(load, 5000)
     return () => clearInterval(id)
-  }, [load])
+  }, [load, active])
 
   useEffect(() => {
     api.getModels().then(setModels)
