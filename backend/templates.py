@@ -372,7 +372,7 @@ KLING_OBERTEIL_PROMPT = r"""{
  "identity": "same adult model throughout the shot -- her exact face AND hair (length, cut, color) must match the reference photos precisely, read from start_image's clearest view. Never generate a different, more generic/symmetrical, or stylized face or hairstyle, and never let identity drift over the course of the turn",
  "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
  "expression": "relaxed, confident, subtle natural smile, direct eye contact when facing camera; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
- "feet_rule": "weight shifts smoothly between the feet during the turn; allow small biomechanically necessary pivot steps with brief natural heel lift, then plant each foot fully -- no sliding, floating, tiptoeing, floor penetration or travel away from center",
+ "feet_rule": "the rotation comes from the hips and torso turning in place -- the feet stay on the SAME spot and only pivot there (heels and balls rotating in place, with at most a brief minimal heel lift). The model NEVER takes a step: no lifting a foot and setting it down somewhere else, no stepping forward, backward or sideways, no shuffling, and above all no repeated back-and-forth foot repositioning. Her stance stays centered on the same footprint for the entire 10 seconds; no sliding, floating, tiptoeing, floor penetration or travel away from center",
  "movement_rule": "only the single continuous front-to-back turn defined below — no improvised movement, walking away or full extra rotation"
  },
  "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality as the body turns.",
@@ -391,7 +391,7 @@ KLING_OBERTEIL_PROMPT = r"""{
  "framing": "full body always visible including both shoes, consistent headroom the entire 10 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
  "choreography": {
  "0.0-1.5s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
- "1.5-8.0s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, using small natural pivot steps and passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
+ "1.5-8.0s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, driven by the hips and torso turning in place with the feet pivoting on the same spot and never stepping, passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
  "8.0-10.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
  }
  }
@@ -408,7 +408,7 @@ KLING_OBERTEIL_PROMPT = r"""{
  "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
  "Puma logo", "any competitor sportswear brand logo on hardware", "branded zipper pull not shown in references",
  "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
- "walking", "spinning too fast", "exaggerated or theatrical movement",
+ "walking", "walking stride", "stepping", "step forward", "step backward", "sidestep", "shuffling feet", "back-and-forth foot repositioning", "repositioning stance", "foot repositioning", "scissor-step stance", "mid-step pose", "weight far forward onto a stepping leg", "gait", "locomotion", "travel away from starting position", "spinning too fast", "exaggerated or theatrical movement",
  "extra limbs", "anatomical distortion", "malformed hands", "extra or fused fingers", "artifacts where hands touch fabric or skin", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
  "background morphing", "warped straight seams", "lens flare", "film grain", "vignette", "depth of field blur",
  "text", "watermarks", "background objects", "additional people",
@@ -459,7 +459,7 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "identity": "same adult model throughout the shot -- her exact face AND hair (length, cut, color) must match the reference photos precisely, read from start_image's clearest view. Never generate a different, more generic/symmetrical, or stylized face or hairstyle, and never let identity drift over the course of the turn",
  "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
  "expression": "relaxed, confident, subtle natural smile, direct eye contact when facing camera; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
- "feet_rule": "weight shifts smoothly between the feet during the turn; allow small biomechanically necessary pivot steps with brief natural heel lift, then plant each foot fully -- no sliding, floating, tiptoeing, floor penetration or travel away from center",
+ "feet_rule": "the rotation comes from the hips and torso turning in place -- the feet stay on the SAME spot and only pivot there (heels and balls rotating in place, with at most a brief minimal heel lift). The model NEVER takes a step: no lifting a foot and setting it down somewhere else, no stepping forward, backward or sideways, no shuffling, and above all no repeated back-and-forth foot repositioning. Her stance stays centered on the same footprint for the entire 10 seconds; no sliding, floating, tiptoeing, floor penetration or travel away from center",
  "movement_rule": "only the single continuous front-to-back turn defined below — no improvised movement, walking away or full extra rotation"
  },
  "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit as the body turns.",
@@ -478,7 +478,7 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "framing": "full body always visible including both shoes, consistent headroom the entire 10 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
  "choreography": {
  "0.0-1.5s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
- "1.5-8.0s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, using small natural pivot steps and passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
+ "1.5-8.0s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, driven by the hips and torso turning in place with the feet pivoting on the same spot and never stepping, passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
  "8.0-10.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
  }
  }
@@ -495,7 +495,7 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "unintended fabric blotches or discoloration", "temporal texture instability", "fabric texture crawling", "unnatural fabric physics", "seam flicker", "hardware flicker",
  "Puma logo", "any competitor sportswear brand logo on hardware", "branded zipper pull not shown in references",
  "motion blur on garment", "pixelation", "compression artifacts", "loss of product detail",
- "walking", "spinning too fast", "exaggerated or theatrical movement",
+ "walking", "walking stride", "stepping", "step forward", "step backward", "sidestep", "shuffling feet", "back-and-forth foot repositioning", "repositioning stance", "foot repositioning", "scissor-step stance", "mid-step pose", "weight far forward onto a stepping leg", "gait", "locomotion", "travel away from starting position", "spinning too fast", "exaggerated or theatrical movement",
  "extra limbs", "anatomical distortion", "malformed hands", "extra or fused fingers", "artifacts where hands touch fabric or skin", "excessive blinking", "rapid eye blinking", "eye flutter", "glassy eyes", "doll-like eyes", "dead-eyed stare", "artificial eye look",
  "background morphing", "warped straight seams", "lens flare", "film grain", "vignette", "depth of field blur",
  "text", "watermarks", "background objects", "additional people",
