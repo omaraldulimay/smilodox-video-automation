@@ -6,7 +6,7 @@ const TABS = [
   { id: 'info', label: 'Info' },
 ]
 
-export default function Header({ activeTab, onTabChange, stats }) {
+export default function Header({ activeTab, onTabChange, stats, budget }) {
   const counts = stats?.counts || {}
   const summary = Object.entries(counts)
     .map(([status, n]) => `${n} ${status}`)
@@ -37,6 +37,21 @@ export default function Header({ activeTab, onTabChange, stats }) {
       </div>
       <div className="header-right">
         {summary && <div className="status-summary">{summary}</div>}
+        {budget?.limit_credits ? (
+          <div
+            className="credits-pill"
+            title={`Monatsbudget: ${budget.used_eur} € von ${budget.limit_eur} € verbraucht. Pro Durchlauf max. ${budget.batch_limit_credits} Credits.`}
+            style={
+              budget.percent_used >= 100
+                ? { borderColor: '#c0392b', color: '#c0392b' }
+                : budget.percent_used >= 80
+                ? { borderColor: '#d68910', color: '#d68910' }
+                : undefined
+            }
+          >
+            Budget {budget.used_credits}/{budget.limit_credits}
+          </div>
+        ) : null}
         <div className="credits-pill">
           <IconCoin />
           {creditsLabel}

@@ -10,6 +10,7 @@ import Info from './views/Info'
 export default function App() {
   const [activeTab, setActiveTab] = useState('batch-upload')
   const [stats, setStats] = useState(null)
+  const [budget, setBudget] = useState(null)
   // Which tabs have ever been opened. A tab is mounted on its first visit and
   // then stays mounted (just hidden) -- switching away and back used to
   // unmount the view entirely, throwing away its state and re-fetching
@@ -25,6 +26,9 @@ export default function App() {
 
   const loadStats = useCallback(() => {
     api.getStats().then(setStats).catch(() => {})
+    // Cheap (one DB sum, no CLI call) -- polled alongside stats so the monthly
+    // spending pill updates right after a batch is committed.
+    api.getBudget().then(setBudget).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -45,7 +49,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Header activeTab={activeTab} onTabChange={handleTabChange} stats={stats} />
+      <Header activeTab={activeTab} onTabChange={handleTabChange} stats={stats} budget={budget} />
       {mountedTabs['dashboard'] && (
         <div style={visibility('dashboard')}>
           {/* Dashboard polls /jobs every 5s -- paused while it's hidden, so a

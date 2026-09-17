@@ -34,6 +34,13 @@ services:
         value: "true"
       - key: GDRIVE_SHARED_DRIVE_NAME
         value: "Smilodox Video Automation"
+      # Spending guardrails (credits). Checked before any job is created --
+      # see main.py's _enforce_spending_limits. 15 credits = 1 video = 0.63 EUR.
+      # Adjust here or in the Render dashboard; 0 disables a limit.
+      - key: MAX_CREDITS_PER_BATCH
+        value: "300"
+      - key: MAX_CREDITS_PER_MONTH
+        value: "1500"
       # Secrets -- set manually in the Render dashboard (Environment tab),
       # never committed here:
       - key: GDRIVE_KEY_JSON

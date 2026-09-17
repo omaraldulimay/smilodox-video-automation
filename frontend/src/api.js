@@ -28,6 +28,7 @@ export const api = {
   getTemplates: () => (_templatesCache ??= request('/templates')),
   getModels: () => (_modelsCache ??= request('/models')),
   getStats: () => request('/stats'),
+  getBudget: () => request('/budget'),
 
   costEstimate: (body) =>
     request('/cost-estimate', {

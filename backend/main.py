@@ -120,6 +120,81 @@ def _save_upload(upload: UploadFile, dest_dir: Path) -> str:
     return str(dest)
 
 
+def _credits_used_this_month(conn) -> float:
+    """Sum of estimated credits for real (non-dry-run) jobs created in the
+    current calendar month. created_at is an ISO-8601 string starting with
+    YYYY-MM, so a LIKE prefix match works identically on SQLite and Postgres.
+
+    Counts jobs at creation time, not completion -- a job that later fails has
+    usually already cost credits by then, so billing against creation is the
+    conservative (and safer) side to be wrong on.
+    """
+    month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+    row = conn.execute(
+        "SELECT COALESCE(SUM(credits_estimate), 0) AS total FROM clips "
+        "WHERE dry_run = 0 AND created_at LIKE ?",
+        (f"{month_prefix}%",),
+    ).fetchone()
+    return float(row["total"] or 0)
+
+
+async def _estimate_batch_credits(model: str, duration: float, aspect_ratio: str,
+                                  resolution: Optional[str], mode: Optional[str]) -> Optional[float]:
+    """Per-job credit cost for a batch about to be committed, or None when it
+    can't be determined (e.g. the Higgsfield CLI is unavailable). Callers treat
+    None as "can't check the limit" and let the commit through -- a job that
+    can't be priced can't be generated either, so it will fail on its own
+    without spending anything, and blocking the whole portal whenever the CLI
+    hiccups would be worse than the risk it guards against.
+    """
+    try:
+        return await hf.estimate_cost(model, "estimate", duration, aspect_ratio, resolution, mode)
+    except Exception:  # noqa: BLE001 - see docstring
+        return None
+
+
+def _enforce_spending_limits(per_job_credits: Optional[float], job_count: int, dry_run: bool) -> float:
+    """Raises HTTPException(400) when a batch would breach either configured
+    limit. Returns the per-job credit figure (0.0 when unknown/dry-run) so the
+    caller can store it on each job row.
+
+    Dry runs are exempt: they only price the job, they never generate.
+    """
+    if dry_run or per_job_credits is None or job_count <= 0:
+        return per_job_credits or 0.0
+
+    batch_total = per_job_credits * job_count
+
+    def _eur(credits: float) -> str:
+        return f"{credits * config.CREDIT_PRICE_EUR:.2f} EUR"
+
+    if config.MAX_CREDITS_PER_BATCH and batch_total > config.MAX_CREDITS_PER_BATCH:
+        raise HTTPException(
+            400,
+            f"Ausgabenlimit pro Durchlauf überschritten: {job_count} Videos kosten "
+            f"{batch_total:.0f} Credits ({_eur(batch_total)}), erlaubt sind "
+            f"{config.MAX_CREDITS_PER_BATCH:.0f} Credits ({_eur(config.MAX_CREDITS_PER_BATCH)}). "
+            f"Wähle weniger Produkte aus oder erhöhe MAX_CREDITS_PER_BATCH.",
+        )
+
+    if config.MAX_CREDITS_PER_MONTH:
+        with db.get_conn() as conn:
+            used = _credits_used_this_month(conn)
+        if used + batch_total > config.MAX_CREDITS_PER_MONTH:
+            remaining = max(0.0, config.MAX_CREDITS_PER_MONTH - used)
+            raise HTTPException(
+                400,
+                f"Monatliches Ausgabenlimit überschritten: diesen Monat bereits "
+                f"{used:.0f} Credits ({_eur(used)}) verbraucht, dieser Durchlauf würde "
+                f"{batch_total:.0f} Credits ({_eur(batch_total)}) kosten. "
+                f"Limit: {config.MAX_CREDITS_PER_MONTH:.0f} Credits "
+                f"({_eur(config.MAX_CREDITS_PER_MONTH)}), noch frei: {remaining:.0f} Credits. "
+                f"Erhöhe MAX_CREDITS_PER_MONTH, wenn das gewollt ist.",
+            )
+
+    return per_job_credits
+
+
 def _insert_job(
     product_id: Optional[str],
     template_key: Optional[str],
@@ -131,6 +206,7 @@ def _insert_job(
     reference_paths: list,
     dry_run: bool,
     mode: Optional[str] = None,
+    credits_estimate: Optional[float] = None,
 ) -> str:
     if model not in config.SUPPORTED_MODELS:
         raise HTTPException(400, f"unsupported model '{model}', expected one of {config.SUPPORTED_MODELS}")
@@ -142,8 +218,8 @@ def _insert_job(
             """
             INSERT INTO clips (
                 job_id, product_id, template_key, prompt, model, duration, aspect_ratio, resolution,
-                mode, reference_paths_json, dry_run, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                mode, reference_paths_json, dry_run, credits_estimate, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
             """,
             (
                 job_id,
@@ -157,6 +233,11 @@ def _insert_job(
                 mode,
                 json.dumps(reference_paths) if reference_paths else None,
                 1 if dry_run else 0,
+                # Stored up front (not only after the worker runs) so the
+                # monthly spending total counts jobs the moment they're
+                # queued -- otherwise a large batch would still be entirely
+                # invisible to the limit until it had already been generated.
+                credits_estimate,
                 now,
                 now,
             ),
@@ -208,17 +289,30 @@ async def create_job(
         raise HTTPException(400, "either 'prompt' or 'template_key' is required")
 
     reference_paths = [_save_upload(f, config.UPLOADS_DIR) for f in references if f is not None and f.filename]
+
+    # Same guardrail as the batch commit -- one job can't breach the per-batch
+    # limit on its own, but it still has to count toward the monthly total,
+    # otherwise repeated single jobs would bypass the budget entirely.
+    _job_duration = duration if duration is not None else 9.0
+    _job_aspect = aspect_ratio or config.DEFAULT_ASPECT_RATIO
+    _job_resolution = resolution or config.DEFAULT_RESOLUTION
+    per_job_credits = None if dry_run else await _estimate_batch_credits(
+        model, _job_duration, _job_aspect, _job_resolution, mode
+    )
+    per_job_credits = _enforce_spending_limits(per_job_credits, 1, dry_run)
+
     job_id = _insert_job(
         product_id,
         template_key,
         prompt,
         model,
-        duration if duration is not None else 9.0,
-        aspect_ratio or config.DEFAULT_ASPECT_RATIO,
-        resolution or config.DEFAULT_RESOLUTION,
+        _job_duration,
+        _job_aspect,
+        _job_resolution,
         reference_paths,
         dry_run,
         mode,
+        per_job_credits or None,
     )
     return JobOut(job_id=job_id)
 
@@ -376,6 +470,22 @@ async def commit_drive_scan(body: DriveScanCommitIn):
             if override:
                 g["images"] = {**g["images"], **override}
 
+    # Spending guardrail -- checked BEFORE any job row is created, so a batch
+    # over the limit creates nothing at all rather than a partial run. Priced
+    # once for the batch: every job in it shares model/duration/aspect/mode,
+    # only the reference images differ, and those don't affect cost.
+    _limit_template = _get_template(groups[0]["template_key"] or body.default_template_key) if groups else None
+    per_job_credits = None
+    if _limit_template and not body.dry_run:
+        per_job_credits = await _estimate_batch_credits(
+            body.model,
+            _limit_template["duration"],
+            _limit_template["aspect_ratio"],
+            body.resolution or _limit_template["resolution"],
+            body.mode,
+        )
+    per_job_credits = _enforce_spending_limits(per_job_credits, len(groups), body.dry_run)
+
     created, errors = [], []
     for g in groups:
         template_key = g["template_key"] or body.default_template_key
@@ -395,6 +505,7 @@ async def commit_drive_scan(body: DriveScanCommitIn):
                 reference_paths=reference_paths,
                 dry_run=body.dry_run,
                 mode=body.mode,
+                credits_estimate=per_job_credits or None,
             )
             created.append(job_id)
         except Exception as exc:  # noqa: BLE001 - collected per-variant, scan keeps going
@@ -548,6 +659,25 @@ async def cost_estimate(body: CostEstimateIn):
     except hf.GenerationError as exc:
         raise HTTPException(400, str(exc))
     return {"credits": credits}
+
+
+@app.get("/budget")
+async def get_budget():
+    """Current month's spending against the configured limits -- lets the UI
+    show how much of the budget is used before someone commits a large batch,
+    rather than only finding out via a rejected commit."""
+    with db.get_conn() as conn:
+        used = _credits_used_this_month(conn)
+    limit = config.MAX_CREDITS_PER_MONTH
+    return {
+        "used_credits": round(used, 1),
+        "limit_credits": limit,
+        "remaining_credits": round(max(0.0, limit - used), 1) if limit else None,
+        "used_eur": round(used * config.CREDIT_PRICE_EUR, 2),
+        "limit_eur": round(limit * config.CREDIT_PRICE_EUR, 2) if limit else None,
+        "batch_limit_credits": config.MAX_CREDITS_PER_BATCH,
+        "percent_used": round(used / limit * 100) if limit else None,
+    }
 
 
 @app.get("/stats")

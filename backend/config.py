@@ -69,6 +69,21 @@ WORKER_POLL_INTERVAL_SECONDS = int(os.environ.get("WORKER_POLL_INTERVAL_SECONDS"
 
 QA_DURATION_TOLERANCE_SECONDS = float(os.environ.get("QA_DURATION_TOLERANCE_SECONDS", "0.75"))
 
+# Spending guardrails. Nothing in the app previously capped how much a single
+# click could spend -- committing a large scan created every job at once, each
+# one costing real credits, with only an on-screen estimate between the team
+# and the bill. Both limits are checked before any job row is created; set
+# either to 0 to disable it.
+#
+# Defaults sized against the team's actual usage (Kling 3.0, 10s, 9:16, std =
+# 15 credits per video): 300 credits ~ 20 videos ~ 12.60 EUR in one batch,
+# 1500 credits ~ 100 videos ~ 63 EUR per calendar month.
+MAX_CREDITS_PER_BATCH = float(os.environ.get("MAX_CREDITS_PER_BATCH", "300"))
+MAX_CREDITS_PER_MONTH = float(os.environ.get("MAX_CREDITS_PER_MONTH", "1500"))
+# Only used to show EUR alongside credits in the UI/error messages -- derived
+# from the team's real invoice (15 credits = 0.63 EUR).
+CREDIT_PRICE_EUR = float(os.environ.get("CREDIT_PRICE_EUR", "0.042"))
+
 DEFAULT_ASPECT_RATIO = "9:16"
 DEFAULT_RESOLUTION = "1080p"
 
