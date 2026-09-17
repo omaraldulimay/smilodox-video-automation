@@ -61,4 +61,24 @@ export const api = {
   driveScanImageUrl: (path) => `${BASE}/jobs/batch/drive-scan/image?path=${encodeURIComponent(path)}`,
   jobVideoUrl: (jobId) => `${BASE}/jobs/${jobId}/video`,
   jobThumbnailUrl: (jobId) => `${BASE}/jobs/${jobId}/thumbnail`,
+
+  getPrompts: () => request('/prompts'),
+  unlockPrompts: (code) =>
+    request('/prompts/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }),
+  savePrompt: (templateKey, promptText, code) =>
+    request(`/prompts/${templateKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, prompt_text: promptText }),
+    }),
+  resetPrompt: (templateKey, code) =>
+    request(`/prompts/${templateKey}/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }),
 }

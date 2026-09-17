@@ -263,6 +263,72 @@ async def list_templates():
     return [dict(row) for row in rows]
 
 
+@app.get("/prompts")
+async def get_prompts():
+    """Current Kling prompt text per garment type -- viewable by anyone
+    already behind the shared portal login, no PROMPT_EDIT_CODE needed just
+    to read. `is_custom` tells the UI whether this is the team's own edit
+    (so a "reset to default" action makes sense) or still the built-in one."""
+    result = {}
+    for template_key in templates.EDITABLE_TEMPLATE_KEYS:
+        custom = templates.get_custom_prompt(template_key)
+        result[template_key] = {
+            "prompt_text": custom or templates.get_default_prompt(template_key),
+            "is_custom": custom is not None,
+        }
+    return result
+
+
+class PromptUnlockIn(BaseModel):
+    code: str
+
+
+@app.post("/prompts/unlock")
+async def unlock_prompts(body: PromptUnlockIn):
+    """Lets the frontend check the edit code up front (so textareas unlock
+    before the user has typed a big edit) without saving anything yet -- the
+    actual save endpoint re-checks the code independently regardless."""
+    if body.code != config.PROMPT_EDIT_CODE:
+        raise HTTPException(401, "falscher Code")
+    return {"ok": True}
+
+
+class PromptSaveIn(BaseModel):
+    code: str
+    prompt_text: str
+
+
+@app.post("/prompts/{template_key}")
+async def save_prompt(template_key: str, body: PromptSaveIn):
+    if template_key not in templates.EDITABLE_TEMPLATE_KEYS:
+        raise HTTPException(404, f"unknown template_key '{template_key}'")
+    if body.code != config.PROMPT_EDIT_CODE:
+        raise HTTPException(401, "falscher Code")
+
+    # These prompts are fed to Higgsfield as a JSON blob -- catching a broken
+    # edit here, with a specific parser error, beats discovering it only when
+    # the next real generation fails (costing credits) or silently degrades
+    # via _sanitize_prompt's raw-JSON handling in higgsfield_adapter.py.
+    try:
+        json.loads(body.prompt_text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(400, f"Kein gültiges JSON: {exc}")
+
+    templates.set_custom_prompt(template_key, body.prompt_text)
+    return {"ok": True, "prompt_text": body.prompt_text, "is_custom": True}
+
+
+@app.post("/prompts/{template_key}/reset")
+async def reset_prompt(template_key: str, body: PromptUnlockIn):
+    if template_key not in templates.EDITABLE_TEMPLATE_KEYS:
+        raise HTTPException(404, f"unknown template_key '{template_key}'")
+    if body.code != config.PROMPT_EDIT_CODE:
+        raise HTTPException(401, "falscher Code")
+
+    templates.reset_custom_prompt(template_key)
+    return {"ok": True, "prompt_text": templates.get_default_prompt(template_key), "is_custom": False}
+
+
 @app.post("/jobs", response_model=JobOut)
 async def create_job(
     model: str = Form(...),

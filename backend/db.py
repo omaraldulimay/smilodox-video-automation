@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
     updated_at TEXT NOT NULL
 );
 
+-- User-edited overrides of the Kling prompt text (see templates.py's Prompt
+-- tab support) -- one row per garment type ("oberteil"/"unterteil") when
+-- someone has saved a custom edit; absent means "use the built-in default".
+CREATE TABLE IF NOT EXISTS custom_prompts (
+    template_key TEXT PRIMARY KEY,
+    prompt_text TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_clips_status ON clips(status);
 """
 
@@ -122,6 +131,13 @@ CREATE TABLE IF NOT EXISTS shot_classifications (
     cache_key TEXT PRIMARY KEY,
     shot_type TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+
+-- See SCHEMA_SQLITE's identical table for what this is.
+CREATE TABLE IF NOT EXISTS custom_prompts (
+    template_key TEXT PRIMARY KEY,
+    prompt_text TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_clips_status ON clips(status);

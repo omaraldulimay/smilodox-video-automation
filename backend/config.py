@@ -84,6 +84,15 @@ MAX_CREDITS_PER_MONTH = float(os.environ.get("MAX_CREDITS_PER_MONTH", "1500"))
 # from the team's real invoice (15 credits = 0.63 EUR).
 CREDIT_PRICE_EUR = float(os.environ.get("CREDIT_PRICE_EUR", "0.042"))
 
+# Second, separate gate in front of the Prompt tab (see main.py's /prompts
+# endpoints) -- everyone behind the shared portal login can VIEW the current
+# prompts, but this code is required to actually save an edit. These prompts
+# are carefully tuned JSON specs (product fidelity, brand logo rules, motion
+# constraints); a casual one-line tweak can silently break generation for the
+# whole team, so editing gets one more deliberate step than the shared portal
+# password. Not meant as real security -- change it if it leaks.
+PROMPT_EDIT_CODE = os.environ.get("PROMPT_EDIT_CODE", "2468")
+
 DEFAULT_ASPECT_RATIO = "9:16"
 DEFAULT_RESOLUTION = "1080p"
 

@@ -47,6 +47,8 @@ a judgment call made to (a) match the explicit "align it with Oberteil" request 
 they want that specifically for the lower-garment line.
 """
 
+from typing import Optional
+
 OBERTEIL_PROMPT = r"""{
  "campaign": "zalando_upper_garment_video",
  "platform_context": "Zalando Product Detail Page (PDP) video",
@@ -515,10 +517,67 @@ TWO_IMAGE_PROMPT_OVERRIDES = {
 }
 
 
+# Garment types editable via the Prompt tab -- deliberately just these two,
+# matching the only prompts actually in active use (Kling 3.0 is the only
+# offered model, see config.SUPPORTED_MODELS/the frontend model filter). The
+# 4-image OBERTEIL_PROMPT/UNTERTEIL_PROMPT above stay fixed/non-editable.
+EDITABLE_TEMPLATE_KEYS = ("oberteil", "unterteil")
+
+
+def get_default_prompt(template_key: str) -> str:
+    """The built-in Kling prompt for a garment type, before any team edit."""
+    return TWO_IMAGE_PROMPT_OVERRIDES["kling3_0"][template_key]
+
+
+def get_custom_prompt(template_key: str) -> Optional[str]:
+    """The team's saved override for a garment type, or None if it has never
+    been edited (falls back to get_default_prompt in that case)."""
+    from . import db
+
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT prompt_text FROM custom_prompts WHERE template_key = ?", (template_key,)
+        ).fetchone()
+    return row["prompt_text"] if row else None
+
+
+def set_custom_prompt(template_key: str, prompt_text: str) -> None:
+    """Saves a team edit. Caller (main.py's /prompts endpoint) is responsible
+    for the PROMPT_EDIT_CODE check and JSON-validity check before calling this
+    -- this function itself does neither, so it stays reusable/testable
+    without needing to fake a code."""
+    from datetime import datetime, timezone
+
+    from . import db
+
+    now = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    with db.get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO custom_prompts (template_key, prompt_text, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(template_key) DO UPDATE SET prompt_text = excluded.prompt_text, updated_at = excluded.updated_at
+            """,
+            (template_key, prompt_text, now),
+        )
+
+
+def reset_custom_prompt(template_key: str) -> None:
+    """Deletes the team's override, reverting to get_default_prompt."""
+    from . import db
+
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM custom_prompts WHERE template_key = ?", (template_key,))
+
+
 def resolve_prompt_text(template_key: str, model: str) -> str:
     override = TWO_IMAGE_PROMPT_OVERRIDES.get(model, {}).get(template_key)
     if override:
-        return override
+        # A saved team edit (see the Prompt tab / EDITABLE_TEMPLATE_KEYS above)
+        # takes priority over the built-in default -- this is the ONE place
+        # that decides what actually gets sent to Kling, so every job-creation
+        # call site (create_job, CSV batch, commit_drive_scan, retry_job) picks
+        # up an edit automatically without needing its own change.
+        return get_custom_prompt(template_key) or override
     return TEMPLATES[template_key]["prompt_text"]
 
 

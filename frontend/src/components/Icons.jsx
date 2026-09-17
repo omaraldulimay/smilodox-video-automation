@@ -72,6 +72,24 @@ export function IconFilm({ size = 20, color = '#4338ca' }) {
   )
 }
 
+export function IconLock({ size = 20, color = '#4338ca' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...base}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  )
+}
+
+export function IconLockOpen({ size = 14, color = '#22c55e' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...base}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 7.5-1.9" />
+    </svg>
+  )
+}
+
 export function IconX({ size = 14, color = '#dc2626' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...base}>

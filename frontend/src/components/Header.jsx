@@ -3,6 +3,7 @@ import { IconCoin } from './Icons'
 const TABS = [
   { id: 'batch-upload', label: 'Batch-Upload' },
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'prompt', label: 'Prompt' },
   { id: 'info', label: 'Info' },
 ]
 

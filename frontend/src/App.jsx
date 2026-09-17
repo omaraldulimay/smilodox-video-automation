@@ -6,6 +6,7 @@ import Header from './components/Header'
 import Dashboard from './views/Dashboard'
 import BatchUpload from './views/BatchUpload'
 import Info from './views/Info'
+import Prompts from './views/Prompts'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('batch-upload')
@@ -61,6 +62,11 @@ export default function App() {
       {mountedTabs['batch-upload'] && (
         <div style={visibility('batch-upload')}>
           <BatchUpload onSwitchToDashboard={() => handleTabChange('dashboard')} />
+        </div>
+      )}
+      {mountedTabs['prompt'] && (
+        <div style={visibility('prompt')}>
+          <Prompts />
         </div>
       )}
       {mountedTabs['info'] && (
