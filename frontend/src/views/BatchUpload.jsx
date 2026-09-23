@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import PageHeader from '../components/PageHeader'
 import CardHeader from '../components/CardHeader'
-import { IconCheck, IconAlertTriangle, IconRefresh, IconFolder } from '../components/Icons'
+import { IconCheck, IconAlertTriangle, IconRefresh, IconFolder, IconX } from '../components/Icons'
 import { RESOLUTION_ALLOWLIST, MODE_ALLOWLIST, modeLabel } from '../modelResolutions'
 
 const SHOT_ORDER = ['full', 'front', 'fullback', 'detail_one']
@@ -620,12 +620,42 @@ export default function BatchUpload({ onSwitchToDashboard }) {
           </div>
         )}
 
-        {commitResult && (
-          <div className="card">
+      </div>
+
+      {commitResult && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            width: 420,
+            maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <div className="card" style={{ boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
+            <button
+              onClick={() => setCommitResult(null)}
+              aria-label="Schließen"
+              style={{
+                position: 'absolute', top: 12, right: 12, border: 'none', background: 'none',
+                cursor: 'pointer', padding: 4, display: 'flex',
+              }}
+            >
+              <IconX size={13} color="var(--text-faint)" />
+            </button>
             <CardHeader
               icon={<IconCheck size={16} color="var(--green-text)" />}
               title={`${commitResult.created.length} Job(s) angelegt${commitResult.errors.length > 0 ? `, ${commitResult.errors.length} Fehler` : ''}`}
             />
+            {commitResult.created.length > 0 && (
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10 }}>
+                {dryRun
+                  ? 'Dry-Run: es wurden keine echten Videos erzeugt, nur Kosten geschätzt.'
+                  : 'Die Jobs laufen jetzt automatisch im Hintergrund. Fortschritt und fertige Videos siehst du live im Dashboard.'}
+              </div>
+            )}
             {commitResult.errors.length > 0 && (
               <div style={{ fontSize: 12, color: 'var(--red-text)', marginBottom: 10 }}>
                 {commitResult.errors.map((e) => (
@@ -639,8 +669,8 @@ export default function BatchUpload({ onSwitchToDashboard }) {
               Fortschritt im Dashboard ansehen
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -11,6 +11,8 @@ export default defineConfig({
       '/models': 'http://127.0.0.1:8000',
       '/stats': 'http://127.0.0.1:8000',
       '/cost-estimate': 'http://127.0.0.1:8000',
+      '/prompts': 'http://127.0.0.1:8000',
+      '/budget': 'http://127.0.0.1:8000',
     },
   },
 })
