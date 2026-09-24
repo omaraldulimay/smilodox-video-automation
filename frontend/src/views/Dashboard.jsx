@@ -165,6 +165,7 @@ export default function Dashboard({ active = true }) {
           <thead>
             <tr>
               <th>Vorschau</th>
+              <th>Artikel</th>
               <th>Status</th>
               <th>Modell</th>
               <th>Auflösung</th>
@@ -180,6 +181,22 @@ export default function Dashboard({ active = true }) {
               <tr key={job.job_id}>
                 <td>
                   <VideoPreview job={job} />
+                </td>
+                <td>
+                  <span
+                    title={job.product_id || undefined}
+                    style={{
+                      display: 'inline-block',
+                      maxWidth: 180,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      verticalAlign: 'bottom',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {job.product_id || <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>—</span>}
+                  </span>
                 </td>
                 <td>
                   <StatusBadge status={job.status} />

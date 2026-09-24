@@ -207,6 +207,7 @@ def _insert_job(
     dry_run: bool,
     mode: Optional[str] = None,
     credits_estimate: Optional[float] = None,
+    article_name: Optional[str] = None,
 ) -> str:
     if model not in config.SUPPORTED_MODELS:
         raise HTTPException(400, f"unsupported model '{model}', expected one of {config.SUPPORTED_MODELS}")
@@ -218,8 +219,8 @@ def _insert_job(
             """
             INSERT INTO clips (
                 job_id, product_id, template_key, prompt, model, duration, aspect_ratio, resolution,
-                mode, reference_paths_json, dry_run, credits_estimate, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                mode, reference_paths_json, dry_run, credits_estimate, article_name, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
             """,
             (
                 job_id,
@@ -238,6 +239,10 @@ def _insert_job(
                 # queued -- otherwise a large batch would still be entirely
                 # invisible to the limit until it had already been generated.
                 credits_estimate,
+                # Article-level output subfolder name (see worker.py) -- None
+                # for jobs not created via the Drive-scan flow, which just
+                # keeps the old flat output/Oberteil layout.
+                article_name,
                 now,
                 now,
             ),
@@ -572,6 +577,7 @@ async def commit_drive_scan(body: DriveScanCommitIn):
                 dry_run=body.dry_run,
                 mode=body.mode,
                 credits_estimate=per_job_credits or None,
+                article_name=g.get("article_name"),
             )
             created.append(job_id)
         except Exception as exc:  # noqa: BLE001 - collected per-variant, scan keeps going

@@ -183,6 +183,70 @@ def _detect_template_from_ancestors(file_path: Path, root_path: Path) -> Optiona
         current = current.parent
 
 
+def _variant_label(file_path: Path, root_path: Path) -> str:
+    """Display name for a product/variant -- normally just the immediate
+    parent folder's name (e.g. "Jacke-Harly-124788"), matching the original
+    one-folder-per-product layout.
+
+    Also handles the newer per-colorway layout introduced 2026-09-24
+    (".../oberteil/Jacke-Harly-124788/Schwarz/full.jpg", one subfolder per
+    color of the same article): walks up from the image, collecting every
+    folder name between it and the oberteil/unterteil ancestor, and joins
+    them (e.g. "Jacke-Harly-124788 - Schwarz"). Showing the color name alone
+    would be ambiguous across articles -- and since this also becomes the
+    output video's filename (see worker.py's _output_filename_stem), two
+    different articles' black colorways would otherwise both produce a video
+    named e.g. "Schwarz_xxxx.mp4", indistinguishable from each other.
+
+    For the original flat layout (nothing between the image and oberteil/
+    unterteil) this returns exactly one segment -- identical to the old
+    `file_path.parent.name` behavior, so existing single-level product
+    folders are completely unaffected.
+    """
+    segments = _ancestor_segments(file_path, root_path)
+    return " - ".join(segments) if segments else file_path.parent.name
+
+
+def _article_folder_name(file_path: Path, root_path: Path) -> str:
+    """The single outermost segment of _variant_label() -- the article
+    folder directly under oberteil/unterteil (e.g. "Jacke-Harly-124788"),
+    without any color subfolder appended. Used to group output videos by
+    article (see worker.py's output-folder handling) even though multiple
+    colorways of the same article are separate variants/jobs.
+
+    Deliberately NOT derived by splitting _variant_label()'s joined string
+    (e.g. on " - ") -- an old flat-layout article name can itself legitimately
+    contain " - " (several real product folders already do), which would be
+    indistinguishable from a genuine article/color join after the fact.
+    Walking the actual folder tree instead (via the same _ancestor_segments()
+    both functions share) has no such ambiguity.
+    """
+    segments = _ancestor_segments(file_path, root_path)
+    return segments[0] if segments else file_path.parent.name
+
+
+def _ancestor_segments(file_path: Path, root_path: Path) -> list[str]:
+    """Folder names between (but not including) the oberteil/unterteil
+    ancestor and the image's immediate parent, outermost first -- e.g.
+    ["Jacke-Harly-124788", "Schwarz"] for the per-colorway layout, or just
+    ["Jacke-Harly-124788"] for the original flat one-folder-per-product
+    layout. Shared by _variant_label() (joins all of it) and
+    _article_folder_name() (keeps only the first element).
+    """
+    root_resolved = root_path.resolve()
+    segments: list[str] = []
+    current = file_path.parent
+    while True:
+        if current.name.strip().lower() in GARMENT_FOLDER_NAMES:
+            break  # stop before including the oberteil/unterteil folder itself
+        segments.append(current.name)
+        if current.resolve() == root_resolved or current.parent == current:
+            break
+        current = current.parent
+    segments.reverse()
+    return segments
+
+
 def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
     """Walks `root` recursively and groups matching images by containing folder --
     each folder holding recognized shot-type images is treated as one product/
@@ -216,7 +280,8 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
         group = groups.setdefault(
             folder_key,
             {
-                "variant_number": file_path.parent.name,
+                "variant_number": _variant_label(file_path, root_path),
+                "article_name": _article_folder_name(file_path, root_path),
                 "template_key": detected_template,
                 "folder": folder_key,
                 "images": {},
@@ -238,7 +303,8 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
         group = groups.setdefault(
             folder_key,
             {
-                "variant_number": file_path.parent.name,
+                "variant_number": _variant_label(file_path, root_path),
+                "article_name": _article_folder_name(file_path, root_path),
                 "template_key": detected_template,
                 "folder": folder_key,
                 "images": {},
@@ -293,6 +359,7 @@ def scan_folder(root: str, model: Optional[str] = None) -> list[dict]:
         results.append(
             {
                 "variant_number": group["variant_number"],
+                "article_name": group["article_name"],
                 "template_key": group["template_key"],
                 "folder": group["folder"],
                 "image_count": len(images),
@@ -326,9 +393,23 @@ def scan_drive_folder(root_folder_id: str, model: Optional[str] = None) -> list[
     groups: dict[str, dict] = {}
 
     def _group_for(f: dict) -> dict:
+        # See _variant_label()'s docstring for the local-scan equivalent of
+        # this: chain is every ancestor folder from the oberteil/unterteil
+        # folder down to (and including) the image's immediate parent, so
+        # excluding the garment-type folder itself and joining the rest
+        # handles both the flat layout (one segment, e.g. "Jacke-Harly-
+        # 124788", unchanged from before) and the newer per-colorway layout
+        # (multiple segments, e.g. "Jacke-Harly-124788 - Schwarz") the same
+        # way, generically, regardless of nesting depth.
         chain = f["_parent_chain"]
         parent_id = chain[-1]["id"] if chain else root_folder_id
-        variant_name = chain[-1]["name"] if chain else "root"
+        variant_segments = [anc["name"] for anc in chain if anc["name"].strip().lower() not in GARMENT_FOLDER_NAMES]
+        variant_name = " - ".join(variant_segments) if variant_segments else "root"
+        # First segment = the article folder directly under oberteil/unterteil
+        # (chain is root-to-leaf order already, so no reversal needed here,
+        # unlike _ancestor_segments()'s bottom-up walk for the local scan).
+        # Used to group output videos by article -- see worker.py.
+        article_name = variant_segments[0] if variant_segments else "root"
         detected_template = None
         for anc in chain:
             name = anc["name"].strip().lower()
@@ -338,6 +419,7 @@ def scan_drive_folder(root_folder_id: str, model: Optional[str] = None) -> list[
             parent_id,
             {
                 "variant_number": variant_name,
+                "article_name": article_name,
                 "template_key": detected_template,
                 "folder": parent_id,
                 "images": {},
@@ -401,6 +483,7 @@ def scan_drive_folder(root_folder_id: str, model: Optional[str] = None) -> list[
         results.append(
             {
                 "variant_number": group["variant_number"],
+                "article_name": group["article_name"],
                 "template_key": group["template_key"],
                 "folder": group["folder"],
                 "image_count": len(images),

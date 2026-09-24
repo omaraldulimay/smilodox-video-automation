@@ -170,31 +170,88 @@ def _output_filename_stem(product_id: Optional[str], job_id: str) -> str:
     return f"{safe}_{job_id[:8]}"
 
 
+def _safe_folder_name(name: str) -> str:
+    """Same sanitizing as _output_filename_stem, but for a folder name (no
+    job-id suffix needed -- unlike video filenames, article folders don't
+    need to be unique, they're meant to collect several colorways' videos
+    together, see _upload_output_to_drive)."""
+    safe = _FILENAME_UNSAFE_RE.sub("-", name.strip()).strip("-_")
+    return safe or "unbekannt"
+
+
+_DOWNLOAD_RETRY_ATTEMPTS = 4
+_DOWNLOAD_RETRY_BACKOFF_SECONDS = 3
+
+
 async def _download(url: str, filename_stem: str, dest_dir):
+    """Downloads the finished clip from Higgsfield's result URL, retrying a
+    handful of times on a transient connection failure before giving up.
+
+    This step runs AFTER Kling has already generated (and charged real
+    credits for) the video -- confirmed 2026-09-24 via a live incident where
+    3 concurrent downloads all hit "[Errno 32] Broken pipe" /
+    "[Errno 54] Connection reset by peer" partway through, mid-stream, with
+    no retry here at all. Since this whole function previously had zero retry
+    logic, a single dropped connection at this exact point failed the ENTIRE
+    job -- and worker.py's job-level retry then resubmitted a brand-new PAID
+    Kling generation instead of simply re-fetching the video that already
+    existed at `url`, throwing away real money on an already-successful
+    generation purely because of a local network hiccup during download.
+
+    Root cause of the hiccup itself: with WORKER_CONCURRENCY=3, three
+    simultaneous multi-MB video downloads can be enough to trip a transient
+    reset on a home/office connection -- retrying the download alone (cheap,
+    no new generation) is the correct fix, not necessarily reducing
+    concurrency (which only lowers the odds, not the underlying fragility).
+
+    BrokenPipeError/ConnectionResetError/httpx's own transport errors are all
+    retried; anything else (e.g. a genuine 4xx from `response.raise_for_status()`)
+    is not, since retrying a permanent error wastes time without ever helping.
+    """
     import httpx
 
     dest = dest_dir / f"{filename_stem}.mp4"
-    async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-        async with client.stream("GET", url) as response:
-            response.raise_for_status()
-            with open(dest, "wb") as f:
-                async for chunk in response.aiter_bytes():
-                    f.write(chunk)
-    return dest
+    last_exc: Exception = RuntimeError("unreachable")
+    for attempt in range(_DOWNLOAD_RETRY_ATTEMPTS):
+        try:
+            async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+                async with client.stream("GET", url) as response:
+                    response.raise_for_status()
+                    with open(dest, "wb") as f:
+                        async for chunk in response.aiter_bytes():
+                            f.write(chunk)
+            return dest
+        except (ConnectionResetError, BrokenPipeError, httpx.TransportError, httpx.RemoteProtocolError) as exc:
+            last_exc = exc
+            dest.unlink(missing_ok=True)  # never leave a partial/truncated file behind
+            if attempt < _DOWNLOAD_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(_DOWNLOAD_RETRY_BACKOFF_SECONDS * (attempt + 1))
+    raise last_exc
 
 
 _OUTPUT_SUBDIR_NAMES = {"oberteil": "Oberteil", "unterteil": "Unterteil"}
 
 
-async def _upload_output_to_drive(local_path: Path, template_key: Optional[str]) -> str:
+async def _upload_output_to_drive(local_path: Path, template_key: Optional[str], article_name: Optional[str] = None) -> str:
     """Uploads a finished clip into the Shared Drive's output/ folder (mirroring
     the local OUTPUT_SUBDIRS layout: output/Oberteil, output/Unterteil), and
-    returns a "gdrive://<id>" reference for storing as the job's output_path."""
+    returns a "gdrive://<id>" reference for storing as the job's output_path.
+
+    When `article_name` is set (jobs from the Drive-scan flow, see main.py's
+    commit_drive_scan), an extra per-article subfolder is created/reused
+    underneath (output/Oberteil/<Artikel>/) -- so the team can open one
+    article's folder and see every colorway's video together, mirroring the
+    reference-images/<garment>/<Artikel>/<Farbe>/ layout they already
+    navigate. Jobs without an article_name (manual/CSV, or pre-existing jobs
+    from before this column existed) keep the old flat layout.
+    """
     output_root_id = await asyncio.to_thread(gdrive.find_root_folder, "output")
     subdir_name = _OUTPUT_SUBDIR_NAMES.get(template_key)
     parent_id = output_root_id
     if subdir_name:
         parent_id = await asyncio.to_thread(gdrive.find_or_create_folder, output_root_id, subdir_name)
+    if article_name:
+        parent_id = await asyncio.to_thread(gdrive.find_or_create_folder, parent_id, article_name)
     file_id = await asyncio.to_thread(gdrive.upload_file, parent_id, local_path, local_path.name, "video/mp4")
     return f"{drive_scan.GDRIVE_PREFIX}{file_id}"
 
@@ -229,6 +286,13 @@ async def _process_job(row):
             raise hf.GenerationError(f"job finished but no result URL found: {job}", transient=False)
 
         dest_dir = config.OUTPUT_SUBDIRS.get(row["template_key"], config.OUTPUT_DIR)
+        article_name = row["article_name"] if "article_name" in row.keys() else None
+        if article_name:
+            # Mirrors the Drive-side per-article subfolder (see
+            # _upload_output_to_drive) locally too, so a non-Drive/local-only
+            # deployment gets the same grouping, not just the hosted one.
+            dest_dir = dest_dir / _safe_folder_name(article_name)
+            dest_dir.mkdir(parents=True, exist_ok=True)
         filename_stem = _output_filename_stem(row["product_id"], job_id)
         output_path = await _download(result_url, filename_stem, dest_dir)
         await qa.strip_audio(output_path)
@@ -245,7 +309,9 @@ async def _process_job(row):
         # cache path uses the Drive file id as that stem, not the job id.
         stored_output_path = str(output_path)
         if config.USE_GDRIVE_API:
-            drive_ref = await _upload_output_to_drive(output_path, row["template_key"])
+            drive_ref = await _upload_output_to_drive(
+                output_path, row["template_key"], _safe_folder_name(article_name) if article_name else None
+            )
             file_id = drive_scan.gdrive_file_id(drive_ref)
             cache_path = config.OUTPUT_CACHE_DIR / f"{file_id}.mp4"
             output_path = output_path.replace(cache_path)

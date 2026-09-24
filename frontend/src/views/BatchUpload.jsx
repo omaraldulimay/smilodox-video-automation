@@ -274,7 +274,13 @@ export default function BatchUpload({ onSwitchToDashboard }) {
     setScanning(true)
     setScanError('')
     setScanResult(null)
-    setCommitResult(null)
+    // NOT setCommitResult(null) here -- re-scanning right after committing
+    // (e.g. to check what's left) used to wipe the "N Job(s) angelegt"
+    // confirmation before it could even be read, since this ran synchronously
+    // the instant the scan started, not when it finished. The confirmation
+    // now only ever changes when a NEW commit actually happens (handleCommit
+    // sets it) or the user closes it themselves -- a stale-but-true "3 Jobs
+    // angelegt" staying visible during a subsequent scan is harmless.
     setImageOverrides({})
     setCorrectedShots({})
     try {

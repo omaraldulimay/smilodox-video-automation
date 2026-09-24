@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS clips (
     credits_estimate REAL,
     qa_status TEXT,
     logo_check TEXT,
+    article_name TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS clips (
     credits_estimate REAL,
     qa_status TEXT,
     logo_check TEXT,
+    article_name TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -222,6 +224,15 @@ def init_db():
             conn.execute("ALTER TABLE clips ADD COLUMN mode TEXT")
         if "logo_check" not in existing_cols:
             conn.execute("ALTER TABLE clips ADD COLUMN logo_check TEXT")
+        if "article_name" not in existing_cols:
+            # Output-video subfolder grouping (see worker.py) -- the article
+            # folder name from the reference-image scan (drive_scan.py's
+            # _article_folder_name), separate from product_id (which for the
+            # newer per-colorway layout also includes the color, e.g.
+            # "Article - Schwarz"). NULL for jobs created outside the
+            # Drive-scan flow (manual/CSV) or before this column existed --
+            # those just keep the old flat output/Oberteil layout.
+            conn.execute("ALTER TABLE clips ADD COLUMN article_name TEXT")
 
 
 def log_event(conn, job_id: str, status: str, message: str = None):
