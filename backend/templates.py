@@ -328,27 +328,35 @@ UNTERTEIL_PROMPT = r"""{
 
 # Kling 3.0 only exposes start_image/end_image (2 reference slots) -- not the
 # 4-image array the main templates above assume. These two variants use start_image
-# (front) and end_image (back) as one single continuous 10-second front-to-back
+# (front) and end_image (back) as one single continuous 12-second front-to-back
 # turn of approximately 180 degrees, instead of the 4-shot hard-cut structure
 # above -- no separate close-up/detail
 # shot, since Kling hallucinated logos and unwanted zoom when that was tried (see
 # KLING_OBERTEIL_PROMPT/KLING_UNTERTEIL_PROMPT's own shots/choreography_discipline).
+#
+# Raised from 10s to 12s on 2026-09-23 -- Zalando's own guidance states a
+# 12-18s preferred editing range; 10s sat just below it (never actually
+# tested against a real Zalando upload, so unclear whether that mattered) --
+# 12s is now the low end of their stated range instead of outside it. Costs
+# ~20% more per video (17.5 -> 21 credits at mode=pro/9:16, confirmed live
+# against the real Higgsfield cost API) -- see config.MAX_CREDITS_PER_MONTH,
+# which may need raising to keep the same monthly video count.
 KLING_OBERTEIL_PROMPT = r"""{
  "campaign": "zalando_upper_garment_video_kling",
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign uses the 12-second format set below -- the low end of that preferred range.",
  "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
  "resolution_min": "762x1100",
  "fps": 24,
- "duration_seconds": 10,
+ "duration_seconds": 12,
  "shot_count": 1,
- "editing": "one single continuous shot for the full 10 seconds -- no cuts, no transitions, no camera movement of any kind; the only motion is the model's own body turning in place",
+ "editing": "one single continuous shot for the full 12 seconds -- no cuts, no transitions, no camera movement of any kind; the only motion is the model's own body turning in place",
  "audio_text_graphics": "none"
  },
  "reference_images": {
@@ -365,7 +373,7 @@ KLING_OBERTEIL_PROMPT = r"""{
  "application_on_garment": "How branding appears varies by product -- the icon/wordmark descriptions above are ground truth for what the marks LOOK like, never a licence to draw a mark from the description, and not a requirement to use both. Which mark, on which garment, at which position and size is read ONLY from what is literally visible in start_image/end_image. Some products carry it as a small tag (icon-only or wordmark-only); others have only \"SMILODOX\" woven/printed into the fabric, no icon. CRITICAL: a single product carries EITHER the icon OR the wordmark, NEVER both together -- match whichever start_image/end_image actually show, and never copy the mark style from a different product onto this one. Reproduce it at the natural size and distance it appears in the reference photos -- never zoom or crop in specifically to feature it; if it is small in the references, it stays small here too. Hardware (zippers, snaps) defaults to plain unbranded metal/plastic unless the references clearly show a mark there -- never substitute Puma's or another brand's logo for Smilodox's feline icon."
  },
  "camera_and_environment": {
- "camera": "camera remains completely locked for the entire 10-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
+ "camera": "camera remains completely locked for the entire 12-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
  "background": "seamless studio backdrop -- match the exact tone and any natural lighting falloff shown in the reference photos, never a fixed or invented color",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
@@ -374,27 +382,27 @@ KLING_OBERTEIL_PROMPT = r"""{
  "identity": "same adult model throughout the shot -- her exact face AND hair (length, cut, color) must match the reference photos precisely, read from start_image's clearest view. Never generate a different, more generic/symmetrical, or stylized face or hairstyle, and never let identity drift over the course of the turn",
  "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
  "expression": "relaxed, confident, subtle natural smile, direct eye contact when facing camera; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
- "feet_rule": "the rotation comes from the hips and torso turning in place -- the feet stay on the SAME spot and only pivot there (heels and balls rotating in place, with at most a brief minimal heel lift). The model NEVER takes a step: no lifting a foot and setting it down somewhere else, no stepping forward, backward or sideways, no shuffling, and above all no repeated back-and-forth foot repositioning. Her stance stays centered on the same footprint for the entire 10 seconds; no sliding, floating, tiptoeing, floor penetration or travel away from center",
+ "feet_rule": "the rotation comes from the hips and torso turning in place -- the feet stay on the SAME spot and only pivot there (heels and balls rotating in place, with at most a brief minimal heel lift). The model NEVER takes a step: no lifting a foot and setting it down somewhere else, no stepping forward, backward or sideways, no shuffling, and above all no repeated back-and-forth foot repositioning. Her stance stays centered on the same footprint for the entire 12 seconds; no sliding, floating, tiptoeing, floor penetration or travel away from center",
  "movement_rule": "only the single continuous front-to-back turn defined below — no improvised movement, walking away or full extra rotation"
  },
  "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes softly and catches light naturally, emphasizing premium tactile material quality as the body turns.",
  "consistency_control": {
  "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing, same pacing of the turn. They do not need to be pixel-identical.",
- "fixed_across_generations": ["camera framing (locked, unchanged for the full 10s)", "turn direction and timing", "lighting setup", "background"],
+ "fixed_across_generations": ["camera framing (locked, unchanged for the full 12s)", "turn direction and timing", "lighting setup", "background"],
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "This is ONE single continuous 10-second shot -- there are no cuts and no separate shots. Motion must flow smoothly and continuously through the entire duration, in the pacing defined below; the timing windows mark one continuous physical motion path, not discrete keyframes. Never speed up into a pose and then freeze/pause, never a sudden snap -- only gradual, evenly-paced continuous turning motion throughout.",
+ "choreography_discipline": "This is ONE single continuous 12-second shot -- there are no cuts and no separate shots. Motion must flow smoothly and continuously through the entire duration, in the pacing defined below; the timing windows mark one continuous physical motion path, not discrete keyframes. Never speed up into a pose and then freeze/pause, never a sudden snap -- only gradual, evenly-paced continuous turning motion throughout.",
  "shots": [
  {
  "id": "shot_01_front_to_back_turn",
- "duration_seconds": 10,
+ "duration_seconds": 12,
  "view": "single continuous front-to-back turn, full body always in frame, camera completely locked -- the model starts facing front as shown in start_image, rotates approximately 180 degrees through the most conservative natural side orientation consistent with both references, and ends facing away as shown in end_image. One fluid motion, never a full 360-degree rotation, a series of cuts or poses, a close-up or a zoom",
- "framing": "full body always visible including both shoes, consistent headroom the entire 10 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
+ "framing": "full body always visible including both shoes, consistent headroom the entire 12 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
  "choreography": {
- "0.0-1.5s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
- "1.5-8.0s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, driven by the hips and torso turning in place with the feet pivoting on the same spot and never stepping, passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
- "8.0-10.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
+ "0.0-1.8s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
+ "1.8-9.6s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, driven by the hips and torso turning in place with the feet pivoting on the same spot and never stepping, passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
+ "9.6-12.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
  }
  }
  ],
@@ -426,16 +434,16 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
  "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign uses the 12-second format set below -- the low end of that preferred range.",
  "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
  "resolution_min": "762x1100",
  "fps": 24,
- "duration_seconds": 10,
+ "duration_seconds": 12,
  "shot_count": 1,
- "editing": "one single continuous shot for the full 10 seconds -- no cuts, no transitions, no camera movement of any kind; the only motion is the model's own body turning in place",
+ "editing": "one single continuous shot for the full 12 seconds -- no cuts, no transitions, no camera movement of any kind; the only motion is the model's own body turning in place",
  "audio_text_graphics": "none"
  },
  "reference_images": {
@@ -452,7 +460,7 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "application_on_garment": "How branding appears varies by product -- the icon/wordmark descriptions above are ground truth for what the marks LOOK like, never a licence to draw a mark from the description, and not a requirement to use both. Which mark, on which garment, at which position and size is read ONLY from what is literally visible in start_image/end_image. Some products carry it as a small tag (icon-only or wordmark-only); others have only \"SMILODOX\" woven/printed into the fabric, no icon. CRITICAL: a single product carries EITHER the icon OR the wordmark, NEVER both together -- match whichever start_image/end_image actually show, and never copy the mark style from a different product onto this one. Reproduce it at the natural size and distance it appears in the reference photos -- never zoom or crop in specifically to feature it; if it is small in the references, it stays small here too. Hardware (zippers, snaps) defaults to plain unbranded metal/plastic unless the references clearly show a mark there -- never substitute Puma's or another brand's logo for Smilodox's feline icon."
  },
  "camera_and_environment": {
- "camera": "camera remains completely locked for the entire 10-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
+ "camera": "camera remains completely locked for the entire 12-second shot -- no zoom, pan, tilt, dolly, tracking, shake or drift, and no cuts. Camera position, distance and framing never change; the model's own body turn is the only motion",
  "background": "seamless studio backdrop -- match the exact tone and any natural lighting falloff shown in the reference photos, never a fixed or invented color",
  "lighting": "soft, even, consistent professional studio lighting throughout",
  "floor_shadow": "subtle natural contact shadow"
@@ -461,27 +469,27 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "identity": "same adult model throughout the shot -- her exact face AND hair (length, cut, color) must match the reference photos precisely, read from start_image's clearest view. Never generate a different, more generic/symmetrical, or stylized face or hairstyle, and never let identity drift over the course of the turn",
  "skin_texture": "real human skin, not airbrushed or beautified -- visible natural micro-texture (fine pores, subtle unevenness in tone, natural sheen that varies with light and movement, faint natural blemishes or texture where the reference photos show them). Skin should look photographed, not digitally smoothed, painted, waxy or plastic; avoid a uniform matte or porcelain surface.",
  "expression": "relaxed, confident, subtle natural smile, direct eye contact when facing camera; calm, natural blink rate with eyes mostly open and steady -- no rapid, repeated or fluttering blinking; eyes look natural, alive and light-reflective, with normal moisture and catchlights -- never glassy, doll-like, dead-eyed, cross-eyed or artificial-looking",
- "feet_rule": "the rotation comes from the hips and torso turning in place -- the feet stay on the SAME spot and only pivot there (heels and balls rotating in place, with at most a brief minimal heel lift). The model NEVER takes a step: no lifting a foot and setting it down somewhere else, no stepping forward, backward or sideways, no shuffling, and above all no repeated back-and-forth foot repositioning. Her stance stays centered on the same footprint for the entire 10 seconds; no sliding, floating, tiptoeing, floor penetration or travel away from center",
+ "feet_rule": "the rotation comes from the hips and torso turning in place -- the feet stay on the SAME spot and only pivot there (heels and balls rotating in place, with at most a brief minimal heel lift). The model NEVER takes a step: no lifting a foot and setting it down somewhere else, no stepping forward, backward or sideways, no shuffling, and above all no repeated back-and-forth foot repositioning. Her stance stays centered on the same footprint for the entire 12 seconds; no sliding, floating, tiptoeing, floor penetration or travel away from center",
  "movement_rule": "only the single continuous front-to-back turn defined below — no improvised movement, walking away or full extra rotation"
  },
  "aesthetic_direction": "Premium minimalist PDP fashion aesthetic with subtle editorial polish. Fabric drapes naturally and moves with the body, emphasizing premium tactile material quality and fit as the body turns.",
  "consistency_control": {
  "tolerance": "Generations across different products should look like they belong to the same campaign/shoot — same energy, same framing, same pacing of the turn. They do not need to be pixel-identical.",
- "fixed_across_generations": ["camera framing (locked, unchanged for the full 10s)", "turn direction and timing", "lighting setup", "background"],
+ "fixed_across_generations": ["camera framing (locked, unchanged for the full 12s)", "turn direction and timing", "lighting setup", "background"],
  "allowed_to_vary_naturally": ["exact micro-timing of fabric movement", "minor natural body motion", "product-specific garment appearance from references"],
  "seed_instruction": "Reuse the same seed value across all product generations if Higgsfield supports seed input, to minimize unwanted variance in pose, framing or lighting interpretation."
  },
- "choreography_discipline": "This is ONE single continuous 10-second shot -- there are no cuts and no separate shots. Motion must flow smoothly and continuously through the entire duration, in the pacing defined below; the timing windows mark one continuous physical motion path, not discrete keyframes. Never speed up into a pose and then freeze/pause, never a sudden snap -- only gradual, evenly-paced continuous turning motion throughout.",
+ "choreography_discipline": "This is ONE single continuous 12-second shot -- there are no cuts and no separate shots. Motion must flow smoothly and continuously through the entire duration, in the pacing defined below; the timing windows mark one continuous physical motion path, not discrete keyframes. Never speed up into a pose and then freeze/pause, never a sudden snap -- only gradual, evenly-paced continuous turning motion throughout.",
  "shots": [
  {
  "id": "shot_01_front_to_back_turn",
- "duration_seconds": 10,
+ "duration_seconds": 12,
  "view": "single continuous front-to-back turn, full body always in frame, camera completely locked -- the model starts facing front as shown in start_image, rotates approximately 180 degrees through the most conservative natural side orientation consistent with both references, and ends facing away as shown in end_image. One fluid motion, never a full 360-degree rotation, a series of cuts or poses, a close-up or a zoom",
- "framing": "full body always visible including both shoes, consistent headroom the entire 10 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
+ "framing": "full body always visible including both shoes, consistent headroom the entire 12 seconds -- the same single unchanging framing throughout; only the model's body orientation changes, the camera never moves closer or further",
  "choreography": {
- "0.0-1.5s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
- "1.5-8.0s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, driven by the hips and torso turning in place with the feet pivoting on the same spot and never stepping, passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
- "8.0-10.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
+ "0.0-1.8s": "settles into a relaxed front-facing stance matching start_image exactly, subtle natural weight sway, direct eye contact",
+ "1.8-9.6s": "smooth, continuous, evenly-paced front-to-back rotation of approximately 180 degrees, driven by the hips and torso turning in place with the feet pivoting on the same spot and never stepping, passing through a conservative side orientation around the midpoint; do not invent unseen side garment features",
+ "9.6-12.0s": "settles into a relaxed rear-facing stance matching end_image exactly, subtle natural weight sway"
  }
  }
  ],
@@ -581,11 +589,19 @@ def resolve_prompt_text(template_key: str, model: str) -> str:
     return TEMPLATES[template_key]["prompt_text"]
 
 
+# "duration" here is what actually reaches the job (main.py's _get_template()
+# reads it from the DB row seed_templates() writes from this dict) -- raised
+# to 12.0 on 2026-09-23 for the active Kling path (see the 12s comment above
+# KLING_OBERTEIL_PROMPT). NOTE: the 4-image prompt_text below (OBERTEIL_PROMPT/
+# UNTERTEIL_PROMPT) still internally describes a 10s/4-shot/2.5s structure --
+# currently dormant since only kling3_0 is offered in the UI, but if
+# gemini_omni is ever re-enabled this pair would need updating too, or the two
+# concerns (Kling duration vs. 4-image duration) split into separate fields.
 TEMPLATES = {
     "oberteil": {
         "garment_type": "Oberteil",
         "prompt_text": OBERTEIL_PROMPT,
-        "duration": 10.0,
+        "duration": 12.0,
         "aspect_ratio": "9:16",
         "resolution": "1080p",
         "shot_count": 4,
@@ -593,7 +609,7 @@ TEMPLATES = {
     "unterteil": {
         "garment_type": "Unterteil",
         "prompt_text": UNTERTEIL_PROMPT,
-        "duration": 10.0,
+        "duration": 12.0,
         "aspect_ratio": "9:16",
         "resolution": "1080p",
         "shot_count": 4,

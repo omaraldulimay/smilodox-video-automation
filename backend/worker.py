@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
@@ -142,10 +143,37 @@ def _extract_result_url(job: dict) -> Optional[str]:
     return None
 
 
-async def _download(url: str, job_id: str, dest_dir):
+_FILENAME_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _output_filename_stem(product_id: Optional[str], job_id: str) -> str:
+    """Product-identifiable filename stem (e.g. "Jacke-Harly-124788_a1b2c3d4")
+    instead of a bare job id -- so the team can tell which article a video is
+    just from its filename, both locally and (since this stem is also used as
+    the Drive filename, see _upload_output_to_drive) in the Shared Drive
+    output/ folder where they actually browse the finished videos.
+
+    `product_id` is the exact folder/variant name from the reference-image
+    scan (main.py's commit_drive_scan sets product_id=variant_number), so
+    this matches the source folder name the team already recognizes. Falls
+    back to the bare job id when no product_id was set (e.g. a manually
+    created job with no folder scan behind it). The short job-id suffix keeps
+    filenames unique even when the same product is regenerated (retry, or a
+    second batch run) -- Drive allows duplicate filenames in one folder, but
+    that would still be confusing to browse.
+    """
+    if not product_id:
+        return job_id
+    safe = _FILENAME_UNSAFE_RE.sub("-", product_id.strip()).strip("-_")
+    if not safe:
+        return job_id
+    return f"{safe}_{job_id[:8]}"
+
+
+async def _download(url: str, filename_stem: str, dest_dir):
     import httpx
 
-    dest = dest_dir / f"{job_id}.mp4"
+    dest = dest_dir / f"{filename_stem}.mp4"
     async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
         async with client.stream("GET", url) as response:
             response.raise_for_status()
@@ -201,7 +229,8 @@ async def _process_job(row):
             raise hf.GenerationError(f"job finished but no result URL found: {job}", transient=False)
 
         dest_dir = config.OUTPUT_SUBDIRS.get(row["template_key"], config.OUTPUT_DIR)
-        output_path = await _download(result_url, job_id, dest_dir)
+        filename_stem = _output_filename_stem(row["product_id"], job_id)
+        output_path = await _download(result_url, filename_stem, dest_dir)
         await qa.strip_audio(output_path)
         # Some models/modes can't natively output above 720p (Gemini Omni) or
         # cap below 1080p on their cheapest tier (Kling std, 800x1152) --
