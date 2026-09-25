@@ -54,6 +54,73 @@ async def probe(file_path: str) -> QAResult:
 # models (Kling pro/4k) already output natively.
 _MIN_SHORT_SIDE = 1080
 
+# Zalando's own stated acceptable range (height/width ratio) -- see the
+# module docstring in templates.py. Anything already inside this range is
+# left alone (a real, valid portrait shot); anything below it (too wide,
+# including the square 1:1 confirmed 2026-09-24 for 12s/mode=pro) gets
+# center-cropped narrower to reach it.
+_MIN_PORTRAIT_RATIO = 1.44
+_MAX_PORTRAIT_RATIO = 1.8
+# What a too-wide video gets cropped TO -- 9:16 exactly, matching our stated
+# target resolution (1080x1920) rather than just the minimum ratio, so a
+# cropped video ends up at the same target the team already expects.
+_CROP_TARGET_RATIO = 16 / 9
+
+
+async def crop_to_portrait_if_needed(video_path: Path) -> bool:
+    """Center-crops a video narrower (left/right, keeping full height) if its
+    height/width ratio is below Zalando's stated minimum (1.44) -- e.g. the
+    square 1440x1440 output confirmed 2026-09-24 for Kling at 12s/mode=pro,
+    which silently ignores the requested 9:16 aspect_ratio.
+
+    Only ever crops the SIDES, never top/bottom: our shots keep "full body
+    always visible including both shoes" with consistent headroom (see
+    templates.py's KLING_*_PROMPT), so cropping vertically risks cutting off
+    the head or feet -- a much worse failure than losing empty space on the
+    sides. If the video is already TOO NARROW (ratio above 1.8, which would
+    need a vertical crop to widen it), this deliberately does nothing and
+    returns False -- fixing that safely would need padding or an upscale
+    approach instead, not a crop; flagged as a known gap, not silently
+    "handled" by doing the risky thing.
+
+    Verified safe only by visual inspection of real footage (2026-09-24, 11
+    products checked, no body/garment ever clipped by this exact crop
+    geometry) -- not a mathematical guarantee for every possible pose, so a
+    fresh product should still get a quick visual spot-check, not blind trust.
+
+    Returns True if a crop was actually performed.
+    """
+    result = await probe(str(video_path))
+    if not result.passed or not result.width or not result.height:
+        return False
+
+    ratio = result.height / result.width
+    if ratio >= _MIN_PORTRAIT_RATIO:
+        return False  # already an acceptable portrait ratio (or narrower) -- leave it alone
+
+    # Even width -- h264 requires it.
+    target_w = round(result.height / _CROP_TARGET_RATIO / 2) * 2
+    if target_w >= result.width:
+        return False  # nothing to crop (shouldn't happen given the ratio check above, but be safe)
+    x_offset = (result.width - target_w) // 2
+
+    tmp_path = video_path.with_suffix(".cropped.mp4")
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-y", "-i", str(video_path),
+        "-vf", f"crop={target_w}:{result.height}:{x_offset}:0",
+        "-c:a", "copy",
+        str(tmp_path),
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc.wait()
+    if proc.returncode != 0 or not tmp_path.is_file():
+        tmp_path.unlink(missing_ok=True)
+        return False
+
+    tmp_path.replace(video_path)
+    return True
+
 
 async def upscale_to_1080p(video_path: Path, aspect_ratio: str) -> bool:
     """Upscales a video in place via ffmpeg (Lanczos) if its short side is below

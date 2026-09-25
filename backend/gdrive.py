@@ -308,6 +308,14 @@ def download_thumbnail_bytes(thumbnail_link: str) -> Optional[bytes]:
     return None
 
 
+def delete_file(file_id: str) -> None:
+    _service().files().delete(fileId=file_id, supportsAllDrives=True).execute()
+
+
+def rename_file(file_id: str, new_name: str) -> None:
+    _service().files().update(fileId=file_id, body={"name": new_name}, supportsAllDrives=True).execute()
+
+
 def upload_file(parent_id: str, local_path: Path, name: Optional[str] = None, mime_type: Optional[str] = None) -> str:
     from googleapiclient.http import MediaFileUpload
 

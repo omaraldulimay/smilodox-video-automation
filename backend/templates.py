@@ -54,7 +54,7 @@ OBERTEIL_PROMPT = r"""{
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
- "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
+ "resolution_and_ratio": "portrait format, target resolution 1080x1920 (9:16, ratio 1.778) -- must be a true portrait ratio, never square or landscape",
  "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
  "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
@@ -197,7 +197,7 @@ UNTERTEIL_PROMPT = r"""{
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
- "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
+ "resolution_and_ratio": "portrait format, target resolution 1080x1920 (9:16, ratio 1.778) -- must be a true portrait ratio, never square or landscape",
  "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign intentionally uses the 10-second format set below.",
  "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
@@ -337,22 +337,31 @@ UNTERTEIL_PROMPT = r"""{
 # Raised from 10s to 12s on 2026-09-23 -- Zalando's own guidance states a
 # 12-18s preferred editing range; 10s sat just below it (never actually
 # tested against a real Zalando upload, so unclear whether that mattered) --
-# 12s is now the low end of their stated range instead of outside it. Costs
-# ~20% more per video (17.5 -> 21 credits at mode=pro/9:16, confirmed live
-# against the real Higgsfield cost API) -- see config.MAX_CREDITS_PER_MONTH,
-# which may need raising to keep the same monthly video count.
+# REVERTED 2026-09-24: 12s produced a genuine regression -- Kling silently
+# ignores the requested aspect_ratio at 12s/mode=pro and returns a SQUARE
+# 1440x1440 video instead of portrait, despite the actual API request
+# correctly specifying aspect_ratio=9:16/width=1080/height=1920 (confirmed by
+# inspecting the real submitted params via `higgsfield generate get`).
+# Every single video generated at 12s (14 of them) came back square; every
+# video at 10s came back in an acceptable portrait ratio (1200x1728). This
+# looks like an undocumented Kling-side duration/mode->resolution table, not
+# anything wrong in our request. Reverting to the proven-working 10s/mode=pro
+# combination rather than risk more square (and non-refundable, see
+# worker.py's _download docstring) generations chasing Zalando's 12-18s
+# preference -- a wrong aspect ratio is a worse Zalando-compliance problem
+# than being 2s short of their stated range.
 KLING_OBERTEIL_PROMPT = r"""{
  "campaign": "zalando_upper_garment_video_kling",
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
- "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign uses the 12-second format set below -- the low end of that preferred range.",
+ "resolution_and_ratio": "portrait format, target resolution 1080x1920 (9:16, ratio 1.778) -- must be a true portrait ratio, never square or landscape",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign uses the 12-second format set below -- the low end of that preferred range. NOTE: at mode=pro, 12s has been observed to sometimes return a square 1440x1440 video despite this aspect_ratio request (confirmed 2026-09-24) -- team decision 2026-09-24 is to keep 12s regardless and address the aspect-ratio issue separately.",
  "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
- "resolution_min": "762x1100",
+ "resolution_target": "1080x1920",
  "fps": 24,
  "duration_seconds": 12,
  "shot_count": 1,
@@ -433,13 +442,13 @@ KLING_UNTERTEIL_PROMPT = r"""{
  "platform_context": "Zalando Product Detail Page (PDP) video",
  "zalando_compliance": {
  "file_format": "MP4, H.264 codec, minimum 24 fps, minimum bitrate 2000 Kb/s, max file size 250MB",
- "resolution_and_ratio": "portrait format, height/width ratio between 1.44 and 1.8, minimum 762x1100px -- 1080x1920 (9:16, ratio 1.778) is within this range and is the actual output resolution",
- "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign uses the 12-second format set below -- the low end of that preferred range.",
+ "resolution_and_ratio": "portrait format, target resolution 1080x1920 (9:16, ratio 1.778) -- must be a true portrait ratio, never square or landscape",
+ "duration_note": "Zalando guidance recommends approximately 15 seconds, with 12-18 seconds stated as the preferred editing range. This campaign uses the 12-second format set below -- the low end of that preferred range. NOTE: at mode=pro, 12s has been observed to sometimes return a square 1440x1440 video despite this aspect_ratio request (confirmed 2026-09-24) -- team decision 2026-09-24 is to keep 12s regardless and address the aspect-ratio issue separately.",
  "content_restrictions": "adult model only, shown fully dressed in the reference garments at all times with no additional skin exposure beyond the garments' own design; no combat implements or physical altercation of any kind; no discriminatory, political or religious content; no substance use; no on-screen text or sound"
  },
  "video_spec": {
  "aspect_ratio": "9:16",
- "resolution_min": "762x1100",
+ "resolution_target": "1080x1920",
  "fps": 24,
  "duration_seconds": 12,
  "shot_count": 1,

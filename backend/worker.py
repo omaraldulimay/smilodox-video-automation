@@ -296,6 +296,13 @@ async def _process_job(row):
         filename_stem = _output_filename_stem(row["product_id"], job_id)
         output_path = await _download(result_url, filename_stem, dest_dir)
         await qa.strip_audio(output_path)
+        # Runs BEFORE upscale_to_1080p on purpose: crops sides off a too-wide
+        # (e.g. square, confirmed 2026-09-24 for Kling 12s/mode=pro) video
+        # down to 9:16 first, so the subsequent upscale check sees the
+        # post-crop dimensions and can still bring the now-narrower video up
+        # to the 1080p short-side floor in the same pass. No-op for a video
+        # that's already an acceptable portrait ratio.
+        cropped = await qa.crop_to_portrait_if_needed(output_path)
         # Some models/modes can't natively output above 720p (Gemini Omni) or
         # cap below 1080p on their cheapest tier (Kling std, 800x1152) --
         # upscale in place so every completed clip meets Zalando's stated
@@ -320,6 +327,8 @@ async def _process_job(row):
         await qa.ensure_thumbnail(output_path)
         probe_result = await qa.probe(str(output_path))
         passed, detail = qa.check_against_target(probe_result, row["duration"])
+        if cropped:
+            detail = f"{detail} (cropped to portrait ratio)"
         if upscaled:
             detail = f"{detail} (upscaled to {probe_result.width}x{probe_result.height})"
         dropped = job.get("_dropped_reference_count")
