@@ -61,10 +61,11 @@ _MIN_SHORT_SIDE = 1080
 # center-cropped narrower to reach it.
 _MIN_PORTRAIT_RATIO = 1.44
 _MAX_PORTRAIT_RATIO = 1.8
-# What a too-wide video gets cropped TO -- 9:16 exactly, matching our stated
-# target resolution (1080x1920) rather than just the minimum ratio, so a
-# cropped video ends up at the same target the team already expects.
-_CROP_TARGET_RATIO = 16 / 9
+# What a too-wide video gets cropped TO -- 1.44 (Zalando's minimum, and the
+# exact aspect ratio of Zalando's PDP video player slot, measured 2026-10-07 at
+# 495x714). Cropping to 9:16 (1.778) instead left ~9% white bars left/right
+# because the player letterboxes anything narrower than 1.44.
+_CROP_TARGET_RATIO = 1.44
 
 
 async def crop_to_portrait_if_needed(video_path: Path) -> bool:
@@ -98,8 +99,9 @@ async def crop_to_portrait_if_needed(video_path: Path) -> bool:
     if ratio >= _MIN_PORTRAIT_RATIO:
         return False  # already an acceptable portrait ratio (or narrower) -- leave it alone
 
-    # Even width -- h264 requires it.
-    target_w = round(result.height / _CROP_TARGET_RATIO / 2) * 2
+    # Even width -- h264 requires it. Round DOWN so height/width never falls
+    # below _CROP_TARGET_RATIO (Zalando's minimum).
+    target_w = int(result.height / _CROP_TARGET_RATIO // 2) * 2
     if target_w >= result.width:
         return False  # nothing to crop (shouldn't happen given the ratio check above, but be safe)
     x_offset = (result.width - target_w) // 2
