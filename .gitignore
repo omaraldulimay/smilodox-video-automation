@@ -13,4 +13,7 @@ internal_data/
 
 # API keys / secrets -- never committed.
 .env
+.env.*
+!.env.example
 .neon
+.claude/settings.local.json
